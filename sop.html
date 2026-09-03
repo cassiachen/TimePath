@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>时程｜TimePath - SOP Library</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="shared/tailwind-tokens.js"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": TIMEPATH_TOKENS.colors,
+                    "borderRadius": TIMEPATH_TOKENS.borderRadius,
+                    "spacing": TIMEPATH_TOKENS.spacing,
+                    "fontFamily": TIMEPATH_TOKENS.fontFamily,
+                    "fontSize": TIMEPATH_TOKENS.fontSize
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-background text-on-surface font-body-md text-body-md h-full flex antialiased">
+<div id="nav-mount"></div>
+<!-- Main Content Area -->
+<main class="ml-0 md:ml-64 flex-1 flex flex-col md:flex-row h-full">
+<!-- Left Column: SOP List -->
+<aside class="w-full md:w-80 max-h-72 md:max-h-none border-b md:border-b-0 md:border-r border-outline-variant bg-surface-container-lowest flex flex-col md:h-full shrink-0">
+<!-- Header -->
+<div class="p-lg border-b border-outline-variant sticky top-0 bg-surface-container-lowest z-10">
+<div class="flex items-center justify-between mb-xs">
+<h2 data-i18n="sop.standard_procedures" class="font-headline-sm text-headline-sm text-on-surface"></h2>
+<button id="new-sop-btn" class="p-xs text-outline hover:text-on-surface hover:bg-surface-container rounded-DEFAULT transition-all" title="New SOP"><span class="material-symbols-outlined">add</span></button>
+</div>
+<div class="relative mt-sm">
+<span class="material-symbols-outlined absolute left-sm top-1/2 -translate-y-1/2 text-outline text-[18px]">search</span>
+<input id="sop-filter" data-i18n-placeholder="sop.filter_placeholder" class="w-full bg-surface-container pl-xl pr-sm py-xs rounded-DEFAULT border-none focus:ring-1 focus:ring-primary text-body-md font-body-md placeholder:text-outline transition-all" placeholder="" type="text"/>
+</div>
+</div>
+<!-- List -->
+<div id="sop-list" class="flex-1 overflow-y-auto p-sm flex flex-col gap-xs custom-scrollbar"></div>
+</aside>
+<!-- Right Column: Detail View -->
+<section class="flex-1 overflow-y-auto bg-surface p-margin-desktop custom-scrollbar">
+<div id="sop-detail" class="max-w-3xl mx-auto"></div>
+<!-- Spacer for bottom breathing room -->
+<div class="h-24"></div>
+</section>
+</main>
+<style>
+        /* Custom Scrollbar for a cleaner look */
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background-color: #d0dbed; /* surface-dim */
+            border-radius: 20px;
+        }
+        .custom-scrollbar:hover::-webkit-scrollbar-thumb {
+            background-color: #c2c6d6; /* outline-variant */
+        }
+    </style>
+<script src="shared/supabase-config.js"></script>
+<script src="shared/supabase-client.js"></script>
+<script src="shared/timepath-utils.js"></script>
+<script src="shared/timepath-store.js"></script>
+<script src="shared/timepath-i18n.js"></script>
+<script src="shared/timepath-auth.js"></script>
+<script src="shared/timepath-sync.js"></script>
+<script src="shared/timepath-migration.js"></script>
+<script src="shared/timepath-nav.js"></script>
+<script src="shared/timepath-app.js"></script>
+<script src="shared/timepath-modal.js"></script>
+<script src="shared/timepath-task-form.js"></script>
+<script src="shared/timepath-sop-form.js"></script>
+<script>
+(function () {
+    var U = window.TimePathUtils, S = window.TimePathStore, T = window.TimePathI18n.t;
+    window.TimePathApp.initPage({ active: "sop", titleKey: "nav.sop" });
+
+    var selectedSopId = null;
+
+    function groupByCategory(sops) {
+        var groups = {};
+        var order = [];
+        sops.forEach(function (sop) {
+            var cat = sop.category || T("sop.uncategorized");
+            if (!groups[cat]) { groups[cat] = []; order.push(cat); }
+            groups[cat].push(sop);
+        });
+        return order.map(function (cat) { return { category: cat, sops: groups[cat] }; });
+    }
+
+    var CATEGORY_COLORS = ["priority-must", "status-progress", "priority-should", "status-done"];
+    function categoryColor(category) {
+        var hash = 0;
+        for (var i = 0; i < category.length; i++) hash = (hash * 31 + category.charCodeAt(i)) >>> 0;
+        return CATEGORY_COLORS[hash % CATEGORY_COLORS.length];
+    }
+
+    function renderList() {
+        var q = document.getElementById("sop-filter").value.trim().toLowerCase();
+        var sops = S.state.sops.filter(function (s) { return !q || s.name.toLowerCase().indexOf(q) !== -1; });
+        if (!selectedSopId && sops.length) selectedSopId = sops[0].id;
+
+        var groups = groupByCategory(sops);
+        document.getElementById("sop-list").innerHTML = groups.map(function (group) {
+            var catColor = categoryColor(group.category);
+            return '<div class="mb-sm">' +
+                '<h3 class="font-mono-sm text-mono-sm px-sm py-xs mb-xs uppercase tracking-widest border-b-2 text-' + catColor + ' border-' + catColor + '/30">' + U.escapeHtml(group.category) + '</h3>' +
+                group.sops.map(function (sop) {
+                    var active = sop.id === selectedSopId;
+                    return '<button data-sop-id="' + sop.id + '" class="w-full text-left px-sm py-sm rounded-DEFAULT ' + (active ? "bg-surface-container-high border-l-[3px] border-" + catColor : "hover:bg-surface-container transition-colors border-l-[3px] border-transparent") + ' flex items-start gap-sm group mt-xs">' +
+                        '<span class="material-symbols-outlined ' + (active ? "text-" + catColor : "text-outline group-hover:text-on-surface-variant transition-colors") + ' mt-[2px] text-[18px]">rule</span>' +
+                        '<div><div class="font-label-md text-label-md ' + (active ? "text-on-surface" : "text-on-surface-variant group-hover:text-on-surface transition-colors") + '">' + U.escapeHtml(sop.name) + '</div>' +
+                        '<div class="font-body-md text-body-md text-on-surface-variant text-[13px] line-clamp-1 mt-[2px]">' + T("sop.steps_duration", { steps: sop.steps.length, min: sop.defaultDurationMinutes }) + '</div></div>' +
+                        '</button>';
+                }).join("") + '</div>';
+        }).join("") || '<p class="text-on-surface-variant p-sm">' + T("sop.no_sops") + '</p>';
+
+        renderDetail();
+    }
+
+    function renderDetail() {
+        var container = document.getElementById("sop-detail");
+        var sop = selectedSopId ? S.getSop(selectedSopId) : null;
+        if (!sop) {
+            container.innerHTML = '<p class="text-on-surface-variant">' + T("sop.select_prompt") + '</p>';
+            return;
+        }
+
+        var stepsHtml = sop.steps.length
+            ? sop.steps.map(function (step, i) {
+                return '<div class="relative z-10 flex gap-md mb-lg group">' +
+                    '<div class="w-6 h-6 rounded-full border-2 border-outline-variant bg-surface-container-lowest flex items-center justify-center shrink-0 mt-xs">' +
+                    '<span class="font-mono-sm text-[10px] text-outline">' + (i + 1) + '</span></div>' +
+                    '<div class="flex-1 bg-surface-container-lowest border border-outline-variant rounded-DEFAULT p-md">' +
+                    '<h4 class="font-label-md text-label-md text-on-surface">' + U.escapeHtml(step.title) + '</h4></div></div>';
+            }).join("")
+            : '<p class="text-on-surface-variant">' + T("sop.no_steps") + '</p>';
+
+        var sopCatColor = categoryColor(sop.category);
+        container.innerHTML =
+            '<header class="mb-xl pb-lg border-b border-outline-variant flex items-start justify-between">' +
+            '<div><div class="flex items-center gap-sm mb-xs">' +
+            '<span class="bg-' + sopCatColor + '/10 text-' + sopCatColor + ' px-sm py-[2px] rounded-DEFAULT font-mono-sm text-mono-sm uppercase tracking-wider">' + U.escapeHtml(sop.category) + '</span>' +
+            '<span class="flex items-center gap-xs text-outline font-mono-sm text-mono-sm"><span class="material-symbols-outlined text-[16px]">schedule</span>' + sop.defaultDurationMinutes + ' ' + T("sop.duration_suffix") + '</span>' +
+            '</div><h1 class="font-headline-lg text-headline-lg text-on-surface">' + U.escapeHtml(sop.name) + '</h1>' +
+            (sop.note ? '<p class="font-body-lg text-body-lg text-on-surface-variant mt-sm max-w-2xl">' + U.escapeHtml(sop.note) + '</p>' : "") +
+            '</div>' +
+            '<div class="flex gap-sm shrink-0">' +
+            '<button id="sop-start-btn" class="flex items-center gap-xs px-md py-sm rounded-DEFAULT bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container hover:text-on-primary-container transition-colors">' +
+            '<span class="material-symbols-outlined text-[18px]">play_arrow</span>' + T("sop.start_today") + '</button>' +
+            '<button id="sop-edit-btn" class="p-xs text-outline hover:text-on-surface hover:bg-surface-container rounded-DEFAULT transition-all" title="Edit SOP"><span class="material-symbols-outlined">edit</span></button>' +
+            '</div></header>' +
+            '<div class="grid grid-cols-2 gap-gutter mb-xl">' +
+            '<div class="bg-surface-container-lowest p-lg border border-priority-should/30 rounded-DEFAULT relative overflow-hidden"><div class="absolute top-0 left-0 w-1 h-full bg-priority-should"></div>' +
+            '<h3 class="font-label-md text-label-md text-priority-should mb-sm flex items-center gap-xs"><span class="material-symbols-outlined text-priority-should text-[18px]">flag</span>' + T("sop.min_standard") + '</h3>' +
+            '<p class="font-body-md text-body-md text-on-surface-variant">' + (U.escapeHtml(sop.minStandard) || "—") + '</p></div>' +
+            '<div class="bg-surface-container-lowest p-lg border border-status-done/30 shadow-sm rounded-DEFAULT relative overflow-hidden"><div class="absolute top-0 left-0 w-1 h-full bg-status-done"></div>' +
+            '<h3 class="font-label-md text-label-md text-status-done mb-sm flex items-center gap-xs"><span class="material-symbols-outlined text-status-done text-[18px]" style="font-variation-settings: \'FILL\' 1;">workspace_premium</span>' + T("sop.full_standard") + '</h3>' +
+            '<p class="font-body-md text-body-md text-on-surface-variant">' + (U.escapeHtml(sop.fullStandard) || "—") + '</p></div>' +
+            '</div>' +
+            '<div><h3 class="font-headline-md text-headline-md text-on-surface mb-lg">' + T("sop.execution_steps") + '</h3>' +
+            '<div class="relative pl-xs">' + stepsHtml + '</div></div>';
+
+        document.getElementById("sop-edit-btn").addEventListener("click", function () {
+            window.TimePathSopForm.open(sop.id, { onSaved: renderList });
+        });
+        document.getElementById("sop-start-btn").addEventListener("click", function () {
+            startSopToday(sop);
+        });
+    }
+
+    // One-click "start doing this now": creates a Today task pre-filled from
+    // the SOP (title/duration/category/steps-as-subtasks) linked via sopId,
+    // then jumps to Today so the user sees it land in the timeline.
+    function startSopToday(sop) {
+        var nowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+        var startTime = U.minutesToTime(Math.ceil(nowMinutes / 5) * 5);
+        S.addTask({
+            title: sop.name,
+            date: U.todayStr(),
+            startTime: startTime,
+            estimatedMinutes: sop.defaultDurationMinutes,
+            priority: "should",
+            category: sop.category,
+            status: "todo",
+            sopId: sop.id,
+            energy: "mid",
+            note: sop.note || "",
+            subtasks: sop.steps.map(function (step) { return { id: U.uid("sub"), title: step.title, done: false }; })
+        });
+        location.href = "today.html";
+    }
+
+    document.getElementById("sop-filter").addEventListener("input", renderList);
+    document.getElementById("sop-list").addEventListener("click", function (e) {
+        var btn = e.target.closest("[data-sop-id]");
+        if (!btn) return;
+        selectedSopId = btn.dataset.sopId;
+        renderList();
+    });
+    document.getElementById("new-sop-btn").addEventListener("click", function () {
+        window.TimePathSopForm.open(null, {
+            onSaved: function () {
+                selectedSopId = S.state.sops[S.state.sops.length - 1].id;
+                renderList();
+            }
+        });
+    });
+    document.getElementById("quick-add-btn").addEventListener("click", function () {
+        window.TimePathTaskForm.open(null, { onSaved: renderList });
+    });
+
+    renderList();
+})();
+</script>
+</body></html>

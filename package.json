@@ -1,0 +1,9 @@
+{
+  "name": "timepath",
+  "private": true,
+  "version": "1.0.0",
+  "description": "TimePath - a static, no-framework time management app. Build step only generates shared/supabase-config.js from Vercel environment variables; the app itself ships as classic <script> tags with zero bundler.",
+  "scripts": {
+    "build": "node scripts/generate-config.js"
+  }
+}

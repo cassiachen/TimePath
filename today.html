@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>时程｜TimePath - Today</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<script src="shared/tailwind-tokens.js"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": TIMEPATH_TOKENS.colors,
+                    "borderRadius": TIMEPATH_TOKENS.borderRadius,
+                    "spacing": TIMEPATH_TOKENS.spacing,
+                    "fontFamily": TIMEPATH_TOKENS.fontFamily,
+                    "fontSize": TIMEPATH_TOKENS.fontSize
+                },
+            },
+        }
+    </script>
+<style>
+        .task-card {
+            border-left: 3px solid;
+            /* border-outline-variant (#cfc4c5) is nearly invisible against the
+               white card / #f9f9f9 page and the hour gridlines that use the
+               same faint color — a card's top edge would visually disappear
+               into whichever hour line it starts on. A default shadow gives
+               every card a real, always-on boundary regardless of content. */
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .task-card:hover {
+            /* No translateY here: the card sits inside a .task-block wrapper
+               clipped to its exact time slot (overflow:hidden), so shifting
+               the card up on hover pushed its own top border/content past
+               that wrapper's edge and it visually vanished. A shadow-only
+               hover keeps the lift feel without moving the box. */
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .task-card.priority-high { border-left-color: #ba1a1a; }
+        .task-card.priority-medium { border-left-color: #b75b00; }
+        .task-card.priority-low { border-left-color: #c8c8c8; }
+        .buffer-slot {
+            background-image: repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(0,0,0,0.03) 10px, rgba(0,0,0,0.03) 20px);
+        }
+        .task-card.conflict { outline: 2px solid #ba1a1a; outline-offset: 1px; }
+        .task-card.dragging { opacity: 0.6; box-shadow: 0 8px 12px -2px rgba(0,0,0,0.2); }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md text-body-md h-full flex antialiased">
+<div id="nav-mount"></div>
+<!-- Main Content Area -->
+<main class="flex-1 ml-0 md:ml-64 flex flex-col min-h-screen relative pb-16">
+<!-- TopAppBar -->
+<header class="flex justify-between items-center h-16 px-margin-desktop bg-surface border-b border-outline-variant sticky top-0 z-20">
+<div class="flex items-center gap-md">
+<!-- Mobile Menu Button -->
+<button class="md:hidden p-sm text-on-surface-variant hover:bg-surface-container rounded-full transition-colors">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<h2 data-i18n="today.schedule_title" class="text-headline-sm font-headline-sm font-bold text-primary hidden md:block"></h2>
+<h2 class="text-headline-sm font-headline-sm font-bold text-primary md:hidden">时程｜TimePath</h2>
+</div>
+<!-- Time Budget Indicator -->
+<div class="hidden lg:flex items-center gap-md bg-surface-container-low border border-outline-variant rounded px-sm py-xs text-xs font-mono-sm">
+<div class="flex items-center gap-xs"><span data-i18n="today.budget_disposable" class="text-on-surface-variant"></span> <span id="budget-disposable" class="font-bold text-primary">--</span></div>
+<div class="w-px h-3 bg-outline-variant"></div>
+<div class="flex items-center gap-xs"><span data-i18n="today.budget_planned" class="text-on-surface-variant"></span> <span id="budget-planned" class="font-bold text-primary">--</span></div>
+<div class="w-px h-3 bg-outline-variant"></div>
+<div class="flex items-center gap-xs"><span data-i18n="today.budget_remaining" class="text-on-surface-variant"></span> <span id="budget-remaining" class="font-bold text-primary">--</span></div>
+</div>
+<div class="flex items-center gap-md">
+<div class="hidden md:flex items-center bg-surface-container-low border border-outline-variant rounded-full px-md py-xs">
+<span class="material-symbols-outlined text-on-surface-variant text-[18px]">search</span>
+<input id="task-search" data-i18n-placeholder="common.search_tasks" class="bg-transparent border-none focus:ring-0 text-body-md font-body-md text-on-surface w-48 placeholder:text-outline" placeholder="" type="text"/>
+</div>
+<div class="flex gap-xs">
+<button class="p-sm text-on-surface-variant hover:bg-surface-container rounded-full transition-colors cursor-pointer active:opacity-70">
+<span class="material-symbols-outlined">timer</span>
+</button>
+<button class="p-sm text-on-surface-variant hover:bg-surface-container rounded-full transition-colors cursor-pointer active:opacity-70 relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button id="settings-btn" class="p-sm text-on-surface-variant hover:bg-surface-container rounded-full transition-colors cursor-pointer active:opacity-70">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</div>
+</header>
+<!-- Timeline Canvas -->
+<div class="flex-1 p-margin-desktop bg-surface overflow-y-auto">
+<!-- Overload Banner -->
+<div id="overload-banner" data-i18n="today.overload_banner" class="hidden mb-md p-sm rounded border border-error bg-error-container text-on-error-container text-body-md font-bold"></div>
+<!-- Date Header -->
+<div class="mb-xl flex justify-between items-end">
+<div>
+<h3 id="date-label" class="text-headline-lg font-headline-lg text-on-surface"></h3>
+<p id="date-summary" class="text-body-lg font-body-lg text-on-surface-variant mt-xs"></p>
+</div>
+<div class="flex gap-sm">
+<button id="prev-day-btn" class="w-8 h-8 rounded-full border border-outline-variant flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[18px]">chevron_left</span>
+</button>
+<button id="next-day-btn" class="w-8 h-8 rounded-full border border-outline-variant flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors">
+<span class="material-symbols-outlined text-[18px]">chevron_right</span>
+</button>
+</div>
+</div>
+<!-- Timeline Structure: a real proportional day-grid (00:00-24:00) so empty
+     space between tasks visibly means free time, rather than an agenda list
+     where every gap looked the same regardless of its real duration -->
+<div class="border-b border-r border-outline-variant">
+<div id="timeline-scroll" class="overflow-y-auto" style="max-height: 640px;">
+<div id="timeline-container" class="relative"></div>
+</div>
+</div>
+</div>
+<!-- Smart Suggestion Toast (Footer) -->
+<div class="fixed bottom-6 right-margin-desktop bg-surface-container-highest border border-outline-variant rounded-lg p-sm pr-md shadow-lg flex items-center gap-sm max-w-sm z-50">
+<div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-[18px]">lightbulb</span>
+</div>
+<p class="font-body-md text-sm text-on-surface-variant leading-tight">
+<strong data-i18n="today.tip_title" class="text-on-surface font-bold"></strong> <span data-i18n="today.tip_body"></span>
+    </p>
+<button class="ml-auto text-on-surface-variant hover:text-primary transition-colors" onclick="this.closest('.fixed').remove()">
+<span class="material-symbols-outlined text-[18px]">close</span>
+</button>
+</div>
+</main>
+<!-- Mobile Floating Action Button (Only visible on small screens) -->
+<button id="mobile-add-btn" class="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-primary text-on-primary rounded-full shadow-[0_4px_8px_rgba(0,0,0,0.15)] flex items-center justify-center z-50 hover:scale-105 active:scale-95 transition-transform">
+<span class="material-symbols-outlined text-[24px]">add</span>
+</button>
+<script src="shared/supabase-config.js"></script>
+<script src="shared/supabase-client.js"></script>
+<script src="shared/timepath-utils.js"></script>
+<script src="shared/timepath-store.js"></script>
+<script src="shared/timepath-goal-store.js"></script>
+<script src="shared/timepath-i18n.js"></script>
+<script src="shared/timepath-auth.js"></script>
+<script src="shared/timepath-sync.js"></script>
+<script src="shared/timepath-migration.js"></script>
+<script src="shared/timepath-nav.js"></script>
+<script src="shared/timepath-app.js"></script>
+<script src="shared/timepath-modal.js"></script>
+<script src="shared/timepath-ui.js"></script>
+<script src="shared/timepath-task-form.js"></script>
+<script src="shared/timepath-settings-form.js"></script>
+<script>
+(function () {
+    var U = window.TimePathUtils, S = window.TimePathStore, T = window.TimePathI18n.t, GS = window.TimePathGoalStore;
+    window.TimePathApp.initPage({ active: "today", showCalendar: true, titleKey: "nav.today" });
+
+    var calMonth;
+    var dismissedOverdue = {};
+    var dragState = null;
+
+    function initCalMonth() {
+        var d = U.parseDate(S.state.selectedDate);
+        calMonth = { year: d.getFullYear(), monthIndex: d.getMonth() };
+    }
+    initCalMonth();
+
+    function priorityClass(priority) {
+        return priority === "must" ? "priority-high" : priority === "should" ? "priority-medium" : "priority-low";
+    }
+    function priorityLabel(priority) {
+        return priority === "must" ? T("priority.must") : priority === "should" ? T("priority.should") : T("priority.optional");
+    }
+    function energyBolts(energy) {
+        var levels = { high: 3, mid: 2, low: 1 };
+        var n = levels[energy] || 1;
+        var out = "";
+        for (var i = 0; i < 3; i++) {
+            out += '<span class="material-symbols-outlined text-[13px] ' + (i < n ? "text-primary" : "text-outline-variant") + '" style="font-variation-settings: \'FILL\' 1;">bolt</span>';
+        }
+        return out;
+    }
+    function elapsedLabel(task) {
+        var mins = S.actualMinutesFor(task);
+        var totalSec = Math.floor(mins * 60);
+        var m = Math.floor(totalSec / 60), sec = totalSec % 60;
+        return m + ":" + String(sec).padStart(2, "0");
+    }
+
+    function isOverdue(task) {
+        if (task.isBuffer) return false;
+        if (task.status === "done" || task.status === "delayed" || task.status === "skipped") return false;
+        if (task.date !== U.todayStr()) return false;
+        var endMin = U.timeToMinutes(task.startTime) + task.estimatedMinutes;
+        var nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+        return nowMin > endMin && !dismissedOverdue[task.id];
+    }
+
+    function renderTaskCard(task) {
+        var subtaskProgress = "";
+        if (task.subtasks && task.subtasks.length) {
+            var doneCount = task.subtasks.filter(function (s) { return s.done; }).length;
+            var pct = Math.round((doneCount / task.subtasks.length) * 100);
+            subtaskProgress = '<div class="pl-10 pr-sm w-full mt-sm">' +
+                '<div class="flex justify-between text-[10px] font-mono-sm text-on-surface-variant mb-1"><span>' + T("today.subtasks_progress", { done: doneCount, total: task.subtasks.length }) + '</span><span>' + pct + '%</span></div>' +
+                '<div class="w-full bg-surface-container-highest rounded-full h-1.5"><div class="bg-primary h-1.5 rounded-full" style="width:' + pct + '%"></div></div></div>';
+        }
+
+        var ring = task.status === "done"
+            ? '<button type="button" data-action="toggle-complete" title="' + T("tasks.mark_incomplete") + '" class="text-primary hover:opacity-70"><span class="material-symbols-outlined" style="font-variation-settings: \'FILL\' 1;">check_circle</span></button>'
+            : '<button type="button" data-action="toggle-complete" title="' + T("tasks.mark_complete") + '" class="w-5 h-5 rounded-full border-2 border-outline-variant mt-1 shrink-0 hover:border-primary transition-colors"></button>';
+
+        var timerBlock = "";
+        if (task.runningSince) {
+            timerBlock = '<div class="bg-surface rounded border border-outline-variant p-xs flex items-center gap-sm w-full md:w-auto justify-between md:justify-start">' +
+                '<div class="font-mono-sm text-[15px] text-on-surface font-bold w-14 text-center js-elapsed">' + elapsedLabel(task) + '</div>' +
+                '<div class="flex gap-xs">' +
+                '<button data-action="pause" class="bg-primary text-on-primary w-7 h-7 rounded flex items-center justify-center hover:bg-primary-container transition-colors"><span class="material-symbols-outlined text-[17px]" style="font-variation-settings: \'FILL\' 1;">pause</span></button>' +
+                '<button data-action="complete" class="bg-transparent border border-outline text-on-surface w-7 h-7 rounded flex items-center justify-center hover:bg-surface-container transition-colors"><span class="material-symbols-outlined text-[17px]">stop</span></button>' +
+                '</div></div>';
+        } else if (task.status !== "done") {
+            timerBlock = '<button data-action="start" class="flex items-center gap-1 px-sm py-xs rounded border border-outline text-on-surface hover:bg-surface-container text-body-md shrink-0">' +
+                '<span class="material-symbols-outlined text-[17px]">play_arrow</span>' + T("today.start") + '</button>';
+        }
+
+        // Icon buttons, not text links: at narrow (mobile) widths the old
+        // "继续执行 / 重新安排 / 移到明天 / 放弃" text row wrapped onto a
+        // second line, growing past the card's fixed slot height — since the
+        // slot height is set from duration alone, the wrapped second line
+        // just got clipped by overflow:hidden, silently deleting "移到明天"
+        // and "放弃" on mobile. Icons stay on one line at any width.
+        var overdueBlock = "";
+        if (isOverdue(task)) {
+            overdueBlock = '<div class="mt-xs pt-xs border-t border-outline-variant flex items-center gap-xs">' +
+                '<span class="text-error font-bold text-[11px] shrink-0 mr-0.5">' + T("today.overdue") + '</span>' +
+                '<button data-action="delay-continue" title="' + T("today.delay_continue") + '" class="w-5 h-5 rounded hover:bg-surface-container flex items-center justify-center text-on-surface-variant shrink-0"><span class="material-symbols-outlined text-[14px]">check</span></button>' +
+                '<button data-action="delay-reschedule" title="' + T("today.delay_reschedule") + '" class="w-5 h-5 rounded hover:bg-surface-container flex items-center justify-center text-on-surface-variant shrink-0"><span class="material-symbols-outlined text-[14px]">edit</span></button>' +
+                '<button data-action="delay-tomorrow" title="' + T("today.delay_tomorrow") + '" class="w-5 h-5 rounded hover:bg-surface-container flex items-center justify-center text-on-surface-variant shrink-0"><span class="material-symbols-outlined text-[14px]">arrow_forward</span></button>' +
+                '<button data-action="delay-abandon" title="' + T("today.delay_abandon") + '" class="w-5 h-5 rounded hover:bg-error-container flex items-center justify-center text-error shrink-0"><span class="material-symbols-outlined text-[14px]">close</span></button>' +
+                '</div>';
+        }
+
+        var titleClasses = "font-label-md text-label-md text-on-surface" + (task.status === "done" ? " line-through" : "");
+        var cardOpacity = task.status === "done" ? " opacity-70" : task.status === "delayed" || task.status === "skipped" ? " opacity-50" : "";
+        var conflicts = S.detectConflict(task.date, task.startTime, task.estimatedMinutes, task.templateId || task.id);
+        var conflictClass = conflicts.length ? " conflict" : "";
+        var statusBadge = task.status === "delayed" ? '<span class="px-2 py-0.5 rounded bg-error-container text-on-error-container font-mono-sm text-[10px] uppercase tracking-wider font-bold">' + T("status.delayed") + '</span>'
+            : task.status === "skipped" ? '<span class="px-2 py-0.5 rounded bg-secondary-container text-on-secondary-container font-mono-sm text-[10px] uppercase tracking-wider font-bold">' + T("status.skipped") + '</span>' : "";
+        var linked = GS.findLinkedNode(task.id);
+        var goalBadge = linked ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary-container text-on-primary-container font-mono-sm text-[10px]" title="' + U.escapeHtml(linked.goal.name + " · " + linked.node.title) + '">' +
+            '<span class="material-symbols-outlined text-[12px]">flag</span>' + U.escapeHtml(linked.goal.name) + '</span>' : "";
+
+        return '<div class="task-card ' + priorityClass(task.priority) + ' bg-surface-container-lowest border border-outline rounded p-sm h-full flex flex-col justify-center gap-xs overflow-hidden' + cardOpacity + conflictClass + '" data-task-id="' + task.id + '" draggable="true">' +
+            '<div class="flex justify-between items-start gap-sm">' +
+            '<div class="flex items-start gap-md pl-sm flex-1 cursor-pointer" data-action="open">' +
+            ring +
+            '<div>' +
+            '<div class="flex items-center gap-sm flex-wrap">' +
+            '<span class="px-2 py-0.5 rounded border ' + U.priorityBorderClass(task.priority) + ' ' + U.priorityTextClass(task.priority) + ' font-mono-sm text-[10px] uppercase tracking-wider font-bold">' + priorityLabel(task.priority) + '</span>' +
+            statusBadge +
+            '<h4 class="' + titleClasses + '">' + U.escapeHtml(task.title) + '</h4>' +
+            '</div>' +
+            (task.note ? '<p class="font-body-md text-body-md text-on-surface-variant mt-xs">' + U.escapeHtml(task.note) + '</p>' : "") +
+            '<div class="flex items-center gap-md mt-xs flex-wrap">' +
+            '<p class="font-mono-sm text-mono-sm text-on-surface-variant">' + U.minutesLabel(task.estimatedMinutes) + '</p>' +
+            '<div class="flex items-center gap-1" title="' + T("today.brain_power") + '">' + energyBolts(task.energy) + '</div>' +
+            goalBadge +
+            '</div>' +
+            '</div>' +
+            '</div>' +
+            timerBlock +
+            '</div>' +
+            subtaskProgress +
+            overdueBlock +
+            '</div>';
+    }
+
+    function renderBufferCard(task) {
+        return '<div class="h-full rounded border border-dashed border-outline-variant buffer-slot bg-surface flex items-center px-sm" data-task-id="' + task.id + '" data-action="open">' +
+            '<span class="font-mono-sm text-[10px] text-on-surface-variant uppercase tracking-wider font-bold truncate">' + T("today.buffer_with_duration", { duration: U.minutesLabel(task.estimatedMinutes) }) + '</span></div>';
+    }
+
+    // A single-line fallback for slots too short to fit the full card (badges,
+    // meta row, timer, subtasks) without breaking the timeline's alignment to
+    // real time — full details are still one click away via data-action="open".
+    function renderTaskCardCompact(task) {
+        var overdue = isOverdue(task);
+        return '<div class="task-card ' + priorityClass(task.priority) + ' bg-surface-container-lowest border rounded h-full flex items-center gap-xs px-xs cursor-pointer overflow-hidden' + (task.status === "done" ? " opacity-70" : "") + (overdue ? " border-error" : " border-outline") + '" data-task-id="' + task.id + '" data-action="open" draggable="true">' +
+            (overdue ? '<span class="material-symbols-outlined text-[11px] text-error shrink-0">warning</span>' : '<span class="font-mono-sm text-[9px] text-on-surface-variant shrink-0">' + task.startTime + '</span>') +
+            '<span class="font-label-md text-[11px] text-on-surface truncate' + (task.status === "done" ? " line-through" : "") + '">' + U.escapeHtml(task.title) + '</span>' +
+            '</div>';
+    }
+
+    // A leaner middle tier for short-but-not-tiny slots: full header + meta
+    // still show, but the timer and overdue menu shrink to icon-sized
+    // controls and subtasks become a plain "2/4" instead of a labeled bar —
+    // by design, so short tasks intentionally show less rather than relying
+    // on overflow:hidden to silently clip whatever doesn't fit.
+    function renderTaskCardMedium(task) {
+        var isDone = task.status === "done";
+        var overdue = isOverdue(task);
+        var conflicts = S.detectConflict(task.date, task.startTime, task.estimatedMinutes, task.templateId || task.id);
+        var conflictClass = conflicts.length ? " conflict" : "";
+        var cardOpacity = isDone ? " opacity-70" : (task.status === "delayed" || task.status === "skipped") ? " opacity-50" : "";
+        var linked = GS.findLinkedNode(task.id);
+
+        var ring = isDone
+            ? '<button type="button" data-action="toggle-complete" title="' + T("tasks.mark_incomplete") + '" class="text-primary shrink-0 flex items-center"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: \'FILL\' 1;">check_circle</span></button>'
+            : '<button type="button" data-action="toggle-complete" title="' + T("tasks.mark_complete") + '" class="w-3.5 h-3.5 rounded-full border-2 border-outline-variant shrink-0 hover:border-primary transition-colors"></button>';
+
+        var timerIcons = "";
+        if (task.runningSince) {
+            timerIcons = '<span class="font-mono-sm text-[9px] text-primary font-bold js-elapsed shrink-0">' + elapsedLabel(task) + '</span>' +
+                '<button data-action="pause" title="' + T("today.start") + '" class="w-4 h-4 rounded bg-primary text-on-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[11px]" style="font-variation-settings: \'FILL\' 1;">pause</span></button>' +
+                '<button data-action="complete" title="' + T("tasks.mark_complete") + '" class="w-4 h-4 rounded border border-outline text-on-surface flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[11px]">stop</span></button>';
+        } else if (!isDone) {
+            timerIcons = '<button data-action="start" title="' + T("today.start") + '" class="w-4 h-4 rounded border border-outline text-on-surface flex items-center justify-center shrink-0 hover:bg-surface-container"><span class="material-symbols-outlined text-[11px]">play_arrow</span></button>';
+        }
+
+        var metaBits = [U.minutesLabel(task.estimatedMinutes)];
+        if (task.subtasks && task.subtasks.length) {
+            var doneCount = task.subtasks.filter(function (s) { return s.done; }).length;
+            metaBits.push(doneCount + "/" + task.subtasks.length);
+        }
+
+        var overdueRow = "";
+        if (overdue) {
+            overdueRow = '<div class="flex items-center gap-0.5">' +
+                '<span class="text-error text-[9px] font-bold shrink-0 mr-0.5">' + T("today.overdue") + '</span>' +
+                '<button data-action="delay-continue" title="' + T("today.delay_continue") + '" class="w-4 h-4 rounded hover:bg-surface-container flex items-center justify-center text-on-surface-variant"><span class="material-symbols-outlined text-[11px]">check</span></button>' +
+                '<button data-action="delay-reschedule" title="' + T("today.delay_reschedule") + '" class="w-4 h-4 rounded hover:bg-surface-container flex items-center justify-center text-on-surface-variant"><span class="material-symbols-outlined text-[11px]">edit</span></button>' +
+                '<button data-action="delay-tomorrow" title="' + T("today.delay_tomorrow") + '" class="w-4 h-4 rounded hover:bg-surface-container flex items-center justify-center text-on-surface-variant"><span class="material-symbols-outlined text-[11px]">arrow_forward</span></button>' +
+                '<button data-action="delay-abandon" title="' + T("today.delay_abandon") + '" class="w-4 h-4 rounded hover:bg-error-container flex items-center justify-center text-error"><span class="material-symbols-outlined text-[11px]">close</span></button>' +
+                '</div>';
+        }
+
+        return '<div class="task-card ' + priorityClass(task.priority) + ' bg-surface-container-lowest border border-outline rounded h-full flex flex-col justify-center gap-0.5 px-xs py-0.5 overflow-hidden' + cardOpacity + conflictClass + '" data-task-id="' + task.id + '" draggable="true">' +
+            '<div class="flex items-center gap-xs cursor-pointer" data-action="open">' +
+            ring +
+            '<h4 class="font-label-md text-[11px] text-on-surface truncate flex-1' + (isDone ? " line-through" : "") + '">' + U.escapeHtml(task.title) + '</h4>' +
+            (linked ? '<span class="material-symbols-outlined text-[12px] text-primary shrink-0" title="' + U.escapeHtml(linked.goal.name) + '">flag</span>' : "") +
+            '</div>' +
+            '<div class="flex items-center gap-xs pl-[18px]">' +
+            '<span class="font-mono-sm text-[9px] text-on-surface-variant truncate">' + metaBits.join(" · ") + '</span>' +
+            '<span class="flex items-center gap-0.5 ml-auto shrink-0">' + timerIcons + '</span>' +
+            '</div>' +
+            (overdueRow ? '<div class="pl-[18px]">' + overdueRow + '</div>' : '') +
+            '</div>';
+    }
+
+    // Real proportional day-grid: 1 minute = PX_PER_MIN pixels, spanning the
+    // full 24 hours, so the empty space between task blocks IS the free time
+    // — no separate "gap" indicator needed, and the NOW line naturally cuts
+    // through whatever task is actually happening at the current time.
+    var PX_PER_MIN = 2;
+    var DAY_MINUTES = 24 * 60;
+    var GUTTER_PX = 52;
+    var COMPACT_THRESHOLD_PX = 28;
+    var MEDIUM_THRESHOLD_PX = 100;
+    var lastAutoScrolledDate = null;
+
+    // Groups tasks into overlap clusters and assigns each a column within its
+    // cluster, so genuinely conflicting tasks sit side-by-side instead of
+    // stacking on top of each other; non-overlapping tasks stay full width.
+    function layoutTasks(tasks) {
+        var items = tasks.map(function (t) {
+            var start = U.timeToMinutes(t.startTime);
+            return { task: t, start: start, end: start + Math.max(t.estimatedMinutes, 1) };
+        }).sort(function (a, b) { return a.start - b.start || a.end - b.end; });
+
+        var clusters = [];
+        var current = null;
+        items.forEach(function (item) {
+            if (!current || item.start >= current.maxEnd) {
+                current = { items: [], maxEnd: item.end };
+                clusters.push(current);
+            }
+            current.items.push(item);
+            current.maxEnd = Math.max(current.maxEnd, item.end);
+        });
+
+        clusters.forEach(function (cluster) {
+            var columnEnds = [];
+            cluster.items.forEach(function (item) {
+                var col = columnEnds.findIndex(function (endTime) { return endTime <= item.start; });
+                if (col === -1) { col = columnEnds.length; columnEnds.push(0); }
+                columnEnds[col] = item.end;
+                item.col = col;
+            });
+            cluster.items.forEach(function (item) { item.totalCols = columnEnds.length; });
+        });
+
+        return items;
+    }
+
+    function renderTimeline() {
+        var date = S.state.selectedDate;
+        var tasks = S.getTasksForDate(date);
+        var isToday = date === U.todayStr();
+        var nowMin = new Date().getHours() * 60 + new Date().getMinutes();
+        var layout = layoutTasks(tasks);
+
+        var hourLabels = [];
+        var hourLines = [];
+        for (var h = 0; h <= 24; h++) {
+            var top = h * 60 * PX_PER_MIN;
+            if (h < 24) hourLabels.push('<span class="absolute left-0 -translate-y-1/2 font-mono-sm text-[10px] text-on-surface-variant" style="top:' + top + 'px">' + U.minutesToTime(h * 60) + '</span>');
+            hourLines.push('<div class="absolute left-0 right-0 border-t border-outline-variant/60" style="top:' + top + 'px"></div>');
+        }
+
+        var blocksHtml = layout.map(function (item) {
+            var task = item.task;
+            var top = item.start * PX_PER_MIN;
+            var height = Math.max(10, task.estimatedMinutes * PX_PER_MIN);
+            var widthPct = 100 / item.totalCols;
+            var leftPct = item.col * widthPct;
+            // height (not min-height) so the box always matches real start/end
+            // time exactly. overflow:hidden, never :auto — task cards must
+            // never scroll internally; the lean card content below is sized
+            // to actually fit its slot instead of relying on scroll as a
+            // safety net.
+            var style = 'top:' + top + 'px; height:' + height + 'px; left:calc(' + leftPct + '% + 3px); width:calc(' + widthPct + '% - 6px); overflow:hidden;';
+            var inner = task.isBuffer ? renderBufferCard(task) :
+                height < COMPACT_THRESHOLD_PX ? renderTaskCardCompact(task) :
+                height < MEDIUM_THRESHOLD_PX ? renderTaskCardMedium(task) :
+                renderTaskCard(task);
+            return '<div class="absolute task-block" style="' + style + '">' + inner + '</div>';
+        }).join("");
+
+        var nowLineHtml = "";
+        if (isToday) {
+            var nowTop = Math.max(0, Math.min(DAY_MINUTES, nowMin)) * PX_PER_MIN;
+            nowLineHtml = '<div class="absolute left-0 right-0 flex items-center z-20 pointer-events-none" style="top:' + nowTop + 'px">' +
+                '<div class="w-2 h-2 rounded-full bg-primary -ml-1 shrink-0"></div>' +
+                '<div class="flex-1 h-px bg-primary"></div>' +
+                '<div class="px-2 py-0.5 bg-primary text-on-primary text-[10px] font-bold rounded shadow-sm shrink-0">' + T("today.now") + " " + U.minutesToTime(nowMin) + '</div>' +
+                '</div>';
+        }
+
+        var totalHeight = DAY_MINUTES * PX_PER_MIN;
+        document.getElementById("timeline-container").innerHTML =
+            '<div class="relative" style="height:' + totalHeight + 'px">' +
+            hourLabels.join("") +
+            '<div id="timeline-lanes" class="absolute top-0 bottom-0 right-0" style="left:' + GUTTER_PX + 'px">' +
+            hourLines.join("") + blocksHtml + nowLineHtml +
+            '</div></div>';
+
+        if (lastAutoScrolledDate !== date) {
+            lastAutoScrolledDate = date;
+            var scrollAnchorMin = isToday ? nowMin : (tasks.length ? Math.min.apply(null, tasks.map(function (t) { return U.timeToMinutes(t.startTime); })) : 7 * 60);
+            document.getElementById("timeline-scroll").scrollTop = Math.max(0, (scrollAnchorMin - 60) * PX_PER_MIN);
+        }
+    }
+
+    function renderBudget() {
+        var b = S.computeBudget(S.state.selectedDate);
+        document.getElementById("budget-disposable").textContent = U.minutesLabel(b.disposableMinutes);
+        document.getElementById("budget-planned").textContent = U.minutesLabel(b.plannedMinutes);
+        document.getElementById("budget-remaining").textContent = (b.remainingMinutes < 0 ? "-" : "") + U.minutesLabel(Math.abs(b.remainingMinutes));
+        document.getElementById("overload-banner").classList.toggle("hidden", !b.overload);
+    }
+
+    function renderDateHeader() {
+        document.getElementById("date-label").textContent = U.formatDateLabel(S.state.selectedDate);
+        var tasks = S.getTasksForDate(S.state.selectedDate).filter(function (t) { return !t.isBuffer; });
+        var done = tasks.filter(function (t) { return t.status === "done"; }).length;
+        document.getElementById("date-summary").textContent = T("today.summary", { done: done, remaining: tasks.length - done });
+    }
+
+    function renderCalendar() {
+        var grid = U.buildMonthGrid(calMonth.year, calMonth.monthIndex);
+        document.getElementById("calendar-month-label").textContent = U.formatMonthLabel(calMonth.year, calMonth.monthIndex);
+        var html = grid.map(function (week) {
+            return week.map(function (day) {
+                var classes = ["p-1", "rounded", "cursor-pointer", "relative"];
+                if (!day.inMonth) classes.push("text-outline");
+                var isSelected = day.dateStr === S.state.selectedDate;
+                if (isSelected) classes.push("bg-primary", "text-on-primary", "font-bold");
+                else classes.push("hover:bg-surface-container");
+                var hasTasks = !isSelected && S.anyTaskHasDot(day.dateStr);
+                var dot = hasTasks ? '<span class="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary"></span>' : "";
+                return '<div class="' + classes.join(" ") + '" data-date="' + day.dateStr + '">' + day.day + dot + "</div>";
+            }).join("");
+        }).join("");
+        document.getElementById("mini-calendar-grid").innerHTML = html;
+    }
+
+    function renderAll() {
+        renderCalendar();
+        renderDateHeader();
+        renderBudget();
+        renderTimeline();
+    }
+
+    // ---- Calendar interactions ----
+    document.getElementById("mini-calendar-grid").addEventListener("click", function (e) {
+        var cell = e.target.closest("[data-date]");
+        if (!cell) return;
+        S.state.selectedDate = cell.dataset.date;
+        S.save();
+        initCalMonth();
+        renderAll();
+    });
+    document.getElementById("cal-prev").addEventListener("click", function () {
+        calMonth.monthIndex--; if (calMonth.monthIndex < 0) { calMonth.monthIndex = 11; calMonth.year--; }
+        renderCalendar();
+    });
+    document.getElementById("cal-next").addEventListener("click", function () {
+        calMonth.monthIndex++; if (calMonth.monthIndex > 11) { calMonth.monthIndex = 0; calMonth.year++; }
+        renderCalendar();
+    });
+    document.getElementById("prev-day-btn").addEventListener("click", function () {
+        S.state.selectedDate = U.addDays(S.state.selectedDate, -1); S.save(); initCalMonth(); renderAll();
+    });
+    document.getElementById("next-day-btn").addEventListener("click", function () {
+        S.state.selectedDate = U.addDays(S.state.selectedDate, 1); S.save(); initCalMonth(); renderAll();
+    });
+
+    // ---- Add task triggers ----
+    function openAdd() { window.TimePathTaskForm.open(null, { defaultDate: S.state.selectedDate, onSaved: renderAll }); }
+    document.getElementById("quick-add-btn").addEventListener("click", openAdd);
+    document.getElementById("mobile-add-btn").addEventListener("click", openAdd);
+    document.getElementById("settings-btn").addEventListener("click", function () {
+        window.TimePathSettingsForm.open({ onSaved: renderAll });
+    });
+
+    // ---- Search (client-side filter on title) ----
+    document.getElementById("task-search").addEventListener("input", function (e) {
+        var q = e.target.value.trim().toLowerCase();
+        document.querySelectorAll("#timeline-container .task-block").forEach(function (block) {
+            var title = block.textContent.toLowerCase();
+            block.style.display = !q || title.indexOf(q) !== -1 ? "" : "none";
+        });
+    });
+
+    // ---- Task card actions (delegated) ----
+    document.getElementById("timeline-container").addEventListener("click", function (e) {
+        var actionEl = e.target.closest("[data-action]");
+        if (!actionEl) {
+            // Clicking empty grid space (not a task, not a button) schedules a
+            // new task starting at that time — the grid position IS the time.
+            var lanes = e.target.closest("#timeline-lanes");
+            if (lanes && !e.target.closest("[data-task-id]")) {
+                var rect = lanes.getBoundingClientRect();
+                var minutes = U.roundTo15(Math.max(0, Math.min(DAY_MINUTES - 15, (e.clientY - rect.top) / PX_PER_MIN)));
+                window.TimePathTaskForm.open(null, { defaultDate: S.state.selectedDate, defaultStartTime: U.minutesToTime(minutes), onSaved: renderAll });
+            }
+            return;
+        }
+        var action = actionEl.dataset.action;
+
+        var cardEl = actionEl.closest("[data-task-id]");
+        if (!cardEl) return;
+        var rawId = cardEl.dataset.taskId;
+        var editId = S.resolveEditableTaskId(rawId);
+        var task = S.getTask(editId);
+
+        if (action === "open") {
+            window.TimePathTaskForm.open(editId, { onSaved: renderAll });
+        } else if (action === "toggle-complete") {
+            var togglePatch = { status: task.status === "done" ? "todo" : "done" };
+            if (togglePatch.status === "done" && task.runningSince) {
+                togglePatch.runningSince = null;
+                togglePatch.timeLog = task.timeLog.concat([{ start: task.runningSince, end: Date.now() }]);
+            }
+            S.updateTask(editId, togglePatch);
+            renderAll();
+        } else if (action === "start") {
+            S.updateTask(editId, { runningSince: Date.now(), status: "in_progress" });
+            renderAll();
+        } else if (action === "pause") {
+            if (task.runningSince) {
+                var log = task.timeLog.concat([{ start: task.runningSince, end: Date.now() }]);
+                S.updateTask(editId, { timeLog: log, runningSince: null });
+            }
+            renderAll();
+        } else if (action === "complete") {
+            var patch = { status: "done", runningSince: null };
+            if (task.runningSince) patch.timeLog = task.timeLog.concat([{ start: task.runningSince, end: Date.now() }]);
+            S.updateTask(editId, patch);
+            renderAll();
+        } else if (action === "delay-continue") {
+            dismissedOverdue[rawId] = true;
+            renderTimeline();
+        } else if (action === "delay-reschedule") {
+            window.TimePathTaskForm.open(editId, { onSaved: renderAll });
+        } else if (action === "delay-tomorrow") {
+            askReason(T("today.reason_tomorrow"), function (reason) {
+                S.updateTask(editId, {
+                    status: "delayed",
+                    delayHistory: task.delayHistory.concat([{ date: task.date, reason: reason, action: "moved_to_tomorrow" }])
+                });
+                S.addTask({
+                    title: task.title, date: U.addDays(task.date, 1), startTime: task.startTime,
+                    estimatedMinutes: task.estimatedMinutes, priority: task.priority, category: task.category,
+                    energy: task.energy, sopId: task.sopId, note: task.note, subtasks: task.subtasks
+                });
+                renderAll();
+            });
+        } else if (action === "delay-abandon") {
+            askReason(T("today.reason_abandon"), function (reason) {
+                S.updateTask(editId, {
+                    status: "skipped",
+                    delayHistory: task.delayHistory.concat([{ date: task.date, reason: reason, action: "abandoned" }])
+                });
+                renderAll();
+            });
+        }
+    });
+
+    // Small reason-capture modal, used instead of window.prompt() (which throws
+    // in sandboxed/embedded browser contexts that disable native dialogs).
+    function askReason(question, onConfirm) {
+        var overlay = document.createElement("div");
+        overlay.className = "fixed inset-0 bg-black/40 z-[100] flex items-center justify-center p-md";
+        overlay.innerHTML =
+            '<div class="bg-surface-container-lowest w-full max-w-sm rounded-xl border border-outline-variant shadow-lg p-md flex flex-col gap-sm">' +
+            '<p class="text-body-md font-bold text-on-surface">' + question + '</p>' +
+            '<textarea class="ar-reason bg-surface border border-outline-variant rounded px-3 py-2 text-body-md" rows="2" placeholder="' + T("today.reason_placeholder") + '"></textarea>' +
+            '<div class="flex justify-end gap-sm pt-xs"><button class="ar-cancel px-md py-sm rounded border border-outline text-on-surface">' + T("common.cancel") + '</button>' +
+            '<button class="ar-confirm px-md py-sm rounded bg-primary text-on-primary font-bold">' + T("common.confirm") + '</button></div></div>';
+        document.body.appendChild(overlay);
+        var textarea = overlay.querySelector(".ar-reason");
+        textarea.focus();
+        function close() { overlay.remove(); }
+        overlay.addEventListener("click", function (e) { if (e.target === overlay) close(); });
+        overlay.querySelector(".ar-cancel").addEventListener("click", close);
+        overlay.querySelector(".ar-confirm").addEventListener("click", function () {
+            var reason = textarea.value.trim();
+            close();
+            onConfirm(reason);
+        });
+    }
+
+    // ---- Drag to nudge time (HTML5 DnD; matches the grid's own PX_PER_MIN scale) ----
+    document.getElementById("timeline-container").addEventListener("dragstart", function (e) {
+        var cardEl = e.target.closest(".task-card");
+        if (!cardEl) return;
+        var rawId = cardEl.dataset.taskId;
+        var editId = S.resolveEditableTaskId(rawId);
+        var task = S.getTask(editId);
+        if (!task) return;
+        dragState = { editId: editId, startY: e.clientY, originalStart: task.startTime };
+        cardEl.classList.add("dragging");
+    });
+    document.getElementById("timeline-container").addEventListener("dragend", function (e) {
+        var cardEl = e.target.closest(".task-card");
+        if (cardEl) cardEl.classList.remove("dragging");
+        if (!dragState) return;
+        var deltaY = (e.clientY || dragState.startY) - dragState.startY;
+        var deltaMin = U.roundTo15(deltaY / PX_PER_MIN);
+        if (deltaMin !== 0) {
+            var newStart = U.minutesToTime(U.timeToMinutes(dragState.originalStart) + deltaMin);
+            S.updateTask(dragState.editId, { startTime: newStart });
+            renderAll();
+        }
+        dragState = null;
+    });
+
+    renderAll();
+    if (!S.state.budgetConfigured) {
+        window.TimePathSettingsForm.open({ isFirstRun: true, onSaved: renderAll });
+    }
+    setInterval(function () {
+        document.querySelectorAll(".js-elapsed").forEach(function (el) {
+            var cardEl = el.closest("[data-task-id]");
+            var task = S.getTask(S.resolveEditableTaskId(cardEl.dataset.taskId));
+            if (task) el.textContent = elapsedLabel(task);
+        });
+    }, 1000);
+    // Re-render every minute so the NOW row keeps moving to the correct slot.
+    setInterval(renderAll, 60000);
+})();
+</script>
+</body></html>

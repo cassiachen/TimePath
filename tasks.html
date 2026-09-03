@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Tasks - 时程｜TimePath</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<script src="shared/tailwind-tokens.js"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+          darkMode: "class",
+          theme: {
+            extend: {
+              "colors": TIMEPATH_TOKENS.colors,
+              "borderRadius": TIMEPATH_TOKENS.borderRadius,
+              "spacing": TIMEPATH_TOKENS.spacing,
+              "fontFamily": TIMEPATH_TOKENS.fontFamily,
+              "fontSize": TIMEPATH_TOKENS.fontSize
+      },
+          },
+        }
+      </script>
+<style>
+    .drawer-open { transform: translateX(0); }
+    .drawer-closed { transform: translateX(100%); }
+</style>
+</head>
+<body class="bg-surface text-on-surface font-body-md text-body-md min-h-screen flex antialiased">
+<div id="nav-mount"></div>
+<!-- Main Content Area -->
+<main class="flex-1 ml-0 md:ml-64 flex flex-col min-h-screen">
+<!-- Top App Bar -->
+<header class="bg-surface dark:bg-surface border-b border-outline-variant dark:border-outline-variant docked full-width top-0 sticky flex justify-between items-center h-16 px-margin-desktop z-30 hidden md:flex">
+<div class="flex-1 flex items-center gap-md">
+<div class="relative w-full max-w-md">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input id="task-search" data-i18n-placeholder="common.search_tasks" class="w-full pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant rounded-full font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all" placeholder="" type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-sm">
+<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full cursor-pointer transition-opacity active:opacity-70">
+<span class="material-symbols-outlined">timer</span>
+</button>
+<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full cursor-pointer transition-opacity active:opacity-70 relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
+</button>
+<button id="settings-btn" class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full cursor-pointer transition-opacity active:opacity-70">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</header>
+<!-- Page Content -->
+<div class="p-margin-mobile md:p-margin-desktop flex-1 flex flex-col gap-xl">
+<!-- Page Header & Actions -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-md">
+<div>
+<h2 data-i18n="tasks.directory_title" class="font-headline-lg text-headline-lg text-on-surface"></h2>
+<p data-i18n="tasks.directory_subtitle" class="font-body-md text-body-md text-on-surface-variant mt-xs"></p>
+</div>
+<div class="flex items-center gap-sm">
+<button id="new-task-btn" class="flex items-center gap-sm bg-primary text-on-primary px-md py-sm rounded-lg font-label-md text-label-md hover:bg-primary-container hover:text-on-primary-container transition-colors shadow-sm">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                        <span data-i18n="tasks.new_task"></span>
+                    </button>
+</div>
+</div>
+<!-- Calendar Overview -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md">
+<div class="flex items-center justify-between mb-md">
+<span id="tasks-calendar-month-label" class="font-headline-sm text-headline-sm text-on-surface font-bold"></span>
+<div class="flex items-center gap-md">
+<span data-i18n="tasks.calendar_hint" class="hidden sm:inline text-label-md font-label-md text-on-surface-variant"></span>
+<div class="flex gap-xs">
+<button id="tasks-cal-prev" class="w-8 h-8 rounded-full border border-outline-variant flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors"><span class="material-symbols-outlined text-[18px]">chevron_left</span></button>
+<button id="tasks-cal-next" class="w-8 h-8 rounded-full border border-outline-variant flex items-center justify-center text-on-surface-variant hover:bg-surface-container transition-colors"><span class="material-symbols-outlined text-[18px]">chevron_right</span></button>
+</div>
+</div>
+</div>
+<div id="tasks-calendar-weekdays" class="grid grid-cols-7 gap-1 text-center font-label-md text-label-md text-on-surface-variant mb-xs"></div>
+<div id="tasks-calendar-grid" class="grid grid-cols-7 gap-1"></div>
+</div>
+<!-- Filters Bar -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-md flex flex-wrap items-center gap-md">
+<div class="flex items-center gap-sm text-on-surface-variant mr-md">
+<span class="material-symbols-outlined text-[20px]">filter_list</span>
+<span data-i18n="tasks.filters" class="font-label-md text-label-md"></span>
+</div>
+<div class="flex items-center gap-xs">
+<select id="filter-priority" class="bg-surface border border-outline-variant text-on-surface font-body-md text-body-md rounded-md px-3 py-1.5 focus:ring-primary focus:border-primary">
+<option value="" data-i18n="tasks.priority_all"></option>
+<option value="must" data-i18n="priority.must"></option>
+<option value="should" data-i18n="priority.should"></option>
+<option value="optional" data-i18n="priority.optional"></option>
+</select>
+</div>
+<div class="flex items-center gap-xs">
+<select id="filter-category" class="bg-surface border border-outline-variant text-on-surface font-body-md text-body-md rounded-md px-3 py-1.5 focus:ring-primary focus:border-primary">
+<option value="" data-i18n="tasks.category_all"></option>
+</select>
+</div>
+<div class="flex items-center gap-xs">
+<select id="filter-status" class="bg-surface border border-outline-variant text-on-surface font-body-md text-body-md rounded-md px-3 py-1.5 focus:ring-primary focus:border-primary">
+<option value="" data-i18n="tasks.status_all"></option>
+<option value="todo" data-i18n="status.todo"></option>
+<option value="in_progress" data-i18n="status.in_progress"></option>
+<option value="done" data-i18n="status.done"></option>
+<option value="delayed" data-i18n="status.delayed"></option>
+<option value="skipped" data-i18n="status.skipped"></option>
+</select>
+</div>
+<div class="ml-auto flex items-center gap-sm">
+<button id="clear-filters-btn" data-i18n="tasks.clear_all" class="text-primary font-label-md text-label-md hover:underline"></button>
+</div>
+</div>
+<!-- Task List (Card-based Table Alternative for better UX) -->
+<div class="flex flex-col gap-sm">
+<!-- Table Header (Visible on Desktop) -->
+<div class="hidden md:grid grid-cols-12 gap-md px-lg py-sm border-b border-outline-variant text-on-surface-variant font-label-md text-label-md uppercase tracking-wider">
+<div data-i18n="tasks.col_name" class="col-span-3"></div>
+<div data-i18n="tasks.col_sop" class="col-span-2"></div>
+<div data-i18n="tasks.col_time" class="col-span-2"></div>
+<div data-i18n="tasks.col_priority" class="col-span-1"></div>
+<div data-i18n="tasks.col_energy" class="col-span-1"></div>
+<div data-i18n="tasks.col_status" class="col-span-2"></div>
+<div data-i18n="tasks.col_actions" class="col-span-1 text-right"></div>
+</div>
+<div id="task-list" class="flex flex-col gap-sm"></div>
+<p id="task-list-empty" data-i18n="tasks.no_match" class="hidden text-center text-on-surface-variant py-lg"></p>
+</div>
+</div>
+</main>
+<!-- Task Detail Drawer -->
+<div class="fixed inset-y-0 right-0 w-full md:w-96 bg-surface-container-lowest border-l border-outline-variant shadow-lg transition-transform duration-300 ease-in-out z-50 drawer-closed flex flex-col" id="task-drawer">
+<div class="p-md border-b border-outline-variant flex justify-between items-center bg-surface">
+<h2 data-i18n="tasks.drawer_title" class="font-headline-sm text-on-surface"></h2>
+<div class="flex items-center gap-xs">
+<button id="drawer-edit-btn" class="text-on-surface-variant hover:bg-surface-container p-1 rounded-full" title="Edit"><span class="material-symbols-outlined">edit</span></button>
+<button id="drawer-close-btn" class="text-on-surface-variant hover:bg-surface-container p-1 rounded-full"><span class="material-symbols-outlined">close</span></button>
+</div>
+</div>
+<div id="drawer-body" class="p-md flex-1 overflow-y-auto flex flex-col gap-lg"></div>
+<div class="p-md border-t border-outline-variant bg-surface">
+<button id="drawer-complete-btn" class="w-full bg-primary text-on-primary py-sm rounded-lg font-label-md hover:bg-primary-container hover:text-on-primary-container transition-colors">
+        </button>
+</div>
+</div>
+<script src="shared/supabase-config.js"></script>
+<script src="shared/supabase-client.js"></script>
+<script src="shared/timepath-utils.js"></script>
+<script src="shared/timepath-store.js"></script>
+<script src="shared/timepath-i18n.js"></script>
+<script src="shared/timepath-auth.js"></script>
+<script src="shared/timepath-sync.js"></script>
+<script src="shared/timepath-migration.js"></script>
+<script src="shared/timepath-nav.js"></script>
+<script src="shared/timepath-app.js"></script>
+<script src="shared/timepath-modal.js"></script>
+<script src="shared/timepath-ui.js"></script>
+<script src="shared/timepath-render.js"></script>
+<script src="shared/timepath-task-form.js"></script>
+<script src="shared/timepath-settings-form.js"></script>
+<script>
+(function () {
+    var U = window.TimePathUtils, S = window.TimePathStore, T = window.TimePathI18n.t;
+    window.TimePathApp.initPage({ active: "tasks", titleKey: "nav.tasks" });
+
+    var drawerTaskId = null;
+
+    function priorityLabel(p) { return p === "must" ? T("priority.must") : p === "should" ? T("priority.should") : T("priority.optional"); }
+    function statusLabel(s) { return { todo: T("status.todo"), in_progress: T("status.in_progress"), done: T("status.done"), delayed: T("status.delayed"), skipped: T("status.skipped") }[s] || s; }
+    function energyLabel(e) { return e === "high" ? T("energy.high") : e === "low" ? T("energy.low") : T("energy.mid"); }
+    function energyIcon(e) { return e === "high" ? "battery_5_bar" : e === "low" ? "battery_2_bar" : "battery_3_bar"; }
+    function statusPct(task) {
+        if (task.subtasks && task.subtasks.length) {
+            return Math.round((task.subtasks.filter(function (s) { return s.done; }).length / task.subtasks.length) * 100);
+        }
+        return task.status === "done" ? 100 : task.status === "in_progress" ? 50 : 0;
+    }
+
+    function populateCategoryFilter() {
+        var select = document.getElementById("filter-category");
+        var current = select.value;
+        var cats = Array.from(new Set(S.state.tasks.map(function (t) { return t.category; }))).sort();
+        select.innerHTML = '<option value="">' + T("tasks.category_all") + '</option>' + cats.map(function (c) {
+            return '<option value="' + U.escapeHtml(c) + '">' + U.escapeHtml(c) + '</option>';
+        }).join("");
+        select.value = current;
+    }
+
+    function matchesFilters(task) {
+        var pf = document.getElementById("filter-priority").value;
+        var cf = document.getElementById("filter-category").value;
+        var sf = document.getElementById("filter-status").value;
+        var qf = document.getElementById("task-search").value.trim().toLowerCase();
+        if (pf && task.priority !== pf) return false;
+        if (cf && task.category !== cf) return false;
+        if (sf && task.status !== sf) return false;
+        if (qf && task.title.toLowerCase().indexOf(qf) === -1) return false;
+        return true;
+    }
+
+    // ---- Calendar overview: click a date number to pop up that day's full
+    // task list (click a task pill to open its detail drawer instead) ----
+    var tasksCalMonth;
+    (function initTasksCalMonth() {
+        var d = U.parseDate(U.todayStr());
+        tasksCalMonth = { year: d.getFullYear(), monthIndex: d.getMonth() };
+    })();
+
+    var CAL_MAX_VISIBLE = 3;
+
+    function renderTasksCalendar() {
+        var weekdayKeys = ["calendar.mon", "calendar.tue", "calendar.wed", "calendar.thu", "calendar.fri", "calendar.sat", "calendar.sun"];
+        document.getElementById("tasks-calendar-weekdays").innerHTML = weekdayKeys.map(function (k) { return "<div>" + T(k) + "</div>"; }).join("");
+        document.getElementById("tasks-calendar-month-label").textContent = U.formatMonthLabel(tasksCalMonth.year, tasksCalMonth.monthIndex);
+
+        var grid = U.buildMonthGrid(tasksCalMonth.year, tasksCalMonth.monthIndex);
+        var today = U.todayStr();
+        document.getElementById("tasks-calendar-grid").innerHTML = grid.map(function (week) {
+            return week.map(function (day) {
+                var dayTasks = window.TimePathUI.sortTasksByTime(S.getTasksForDate(day.dateStr));
+                var classes = ["min-h-[5.5rem]", "sm:min-h-[6.5rem]", "rounded", "p-1", "flex", "flex-col", "gap-0.5", "cursor-pointer", "transition-colors", "border", "border-transparent"];
+                classes.push(day.inMonth ? "text-on-surface" : "text-outline opacity-60");
+                if (day.dateStr === today) {
+                    classes.push("bg-surface-container-high border-primary");
+                } else {
+                    classes.push("hover:bg-surface-container-low");
+                }
+
+                var visible = dayTasks.slice(0, CAL_MAX_VISIBLE);
+                var overflow = dayTasks.length - visible.length;
+                var pillsHtml = visible.map(function (t) {
+                    return '<div data-task-id="' + t.id + '" class="flex items-center gap-1 px-1 py-0.5 sm:rounded sm:bg-surface-container-lowest sm:border sm:border-outline-variant/60 truncate hover:border-outline transition-colors">' +
+                        '<span class="w-1.5 h-1.5 rounded-full shrink-0 ' + U.priorityBgClass(t.priority) + '"></span>' +
+                        '<span class="hidden sm:inline truncate text-[10px] font-body-md' + (t.status === "done" ? " line-through text-on-surface-variant" : "") + '">' + U.escapeHtml(t.title) + '</span></div>';
+                }).join("");
+                var overflowHtml = overflow > 0 ? '<div class="text-[10px] text-on-surface-variant px-1">+' + overflow + '</div>' : "";
+
+                return '<div class="' + classes.join(" ") + '" data-date="' + day.dateStr + '">' +
+                    '<span data-date-badge="' + day.dateStr + '" class="font-mono-sm text-mono-sm shrink-0 self-start -m-0.5 px-1.5 py-0.5 rounded hover:bg-surface-container-high hover:ring-1 hover:ring-outline-variant transition-colors' + (day.dateStr === today ? " font-bold text-primary" : "") + '">' + day.day + '</span>' +
+                    pillsHtml + overflowHtml +
+                    '</div>';
+            }).join("");
+        }).join("");
+    }
+
+    document.getElementById("tasks-cal-prev").addEventListener("click", function () {
+        tasksCalMonth.monthIndex--; if (tasksCalMonth.monthIndex < 0) { tasksCalMonth.monthIndex = 11; tasksCalMonth.year--; }
+        renderTasksCalendar();
+    });
+    document.getElementById("tasks-cal-next").addEventListener("click", function () {
+        tasksCalMonth.monthIndex++; if (tasksCalMonth.monthIndex > 11) { tasksCalMonth.monthIndex = 0; tasksCalMonth.year++; }
+        renderTasksCalendar();
+    });
+    document.getElementById("tasks-calendar-grid").addEventListener("click", function (e) {
+        var taskPill = e.target.closest("[data-task-id]");
+        if (taskPill) {
+            openDrawer(S.resolveEditableTaskId(taskPill.dataset.taskId));
+            return;
+        }
+        var cell = e.target.closest("[data-date]");
+        if (!cell) return;
+        showDayTasksModal(cell.dataset.date);
+    });
+
+    var dayModalOverlay = null;
+    function showDayTasksModal(dateStr) {
+        if (dayModalOverlay) dayModalOverlay.remove();
+        var tasks = window.TimePathUI.sortTasksByTime(S.getTasksForDate(dateStr));
+        var overlay = document.createElement("div");
+        overlay.className = "fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-md";
+        overlay.setAttribute("data-modal-overlay", "true");
+        var modal = document.createElement("div");
+        modal.className = "bg-surface rounded-lg shadow-lg max-w-2xl w-full max-h-[80vh] flex flex-col";
+        modal.innerHTML =
+            '<div class="p-md border-b border-outline-variant flex items-center justify-between shrink-0">' +
+            '<h2 class="font-headline-sm text-headline-sm text-on-surface">' + U.formatDateLabel(dateStr) + '</h2>' +
+            '<button data-modal-close class="text-on-surface-variant hover:bg-surface-container p-1 rounded-full"><span class="material-symbols-outlined">close</span></button>' +
+            '</div>' +
+            '<div class="p-md overflow-y-auto flex-1 flex flex-col gap-sm">' +
+            (tasks.length ? tasks.map(renderTaskRow).join("") : '<p class="text-on-surface-variant text-center py-lg">' + T("tasks.day_no_tasks") + '</p>') +
+            '</div>';
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+        dayModalOverlay = overlay;
+
+        var closeHandler = function () { overlay.remove(); dayModalOverlay = null; };
+        window.TimePathModal.attachCommonModalBehavior(overlay, closeHandler);
+
+        modal.addEventListener("click", function (e) {
+            var row = e.target.closest(".task-row");
+            if (!row) return;
+            if (e.target.closest('[data-action="row-edit"]')) {
+                window.TimePathTaskForm.open(S.resolveEditableTaskId(row.dataset.taskId), {
+                    onSaved: function () { renderList(); renderTasksCalendar(); showDayTasksModal(dateStr); }
+                });
+                return;
+            }
+            closeHandler();
+            openDrawer(S.resolveEditableTaskId(row.dataset.taskId));
+        });
+    }
+
+    function renderTaskRow(task) {
+        return window.TimePathRender.taskRowHtml(task, { U: U, S: S, T: T });
+    }
+
+    function renderList() {
+        populateCategoryFilter();
+        var tasks = window.TimePathUI.sortTasksByTime(S.state.tasks.filter(matchesFilters));
+        document.getElementById("task-list").innerHTML = tasks.map(renderTaskRow).join("");
+        document.getElementById("task-list-empty").classList.toggle("hidden", tasks.length > 0);
+        if (drawerTaskId) renderDrawer(drawerTaskId);
+    }
+
+    function openDrawer(taskId) {
+        drawerTaskId = taskId;
+        renderDrawer(taskId);
+        document.getElementById("task-drawer").classList.remove("drawer-closed");
+    }
+    function closeDrawer() {
+        document.getElementById("task-drawer").classList.add("drawer-closed");
+        drawerTaskId = null;
+    }
+
+    function renderDrawer(taskId) {
+        var task = S.getTask(taskId);
+        if (!task) { closeDrawer(); return; }
+        document.getElementById("drawer-body").innerHTML = window.TimePathRender.taskDrawerHtml(task, { U: U, S: S, T: T });
+        document.getElementById("drawer-complete-btn").textContent = task.status === "done" ? T("tasks.mark_incomplete") : T("tasks.mark_complete");
+    }
+
+    // ---- Filter interactions ----
+    window.TimePathUI.bindInputChange(["filter-priority", "filter-category", "filter-status"], renderList);
+    document.getElementById("task-search").addEventListener("input", renderList);
+    document.getElementById("clear-filters-btn").addEventListener("click", function () {
+        document.getElementById("filter-priority").value = "";
+        document.getElementById("filter-category").value = "";
+        document.getElementById("filter-status").value = "";
+        document.getElementById("task-search").value = "";
+        renderList();
+    });
+
+    // ---- New task / settings ----
+    function openAdd() { window.TimePathTaskForm.open(null, { onSaved: renderList }); }
+    document.getElementById("new-task-btn").addEventListener("click", openAdd);
+    document.getElementById("quick-add-btn").addEventListener("click", openAdd);
+    document.getElementById("settings-btn").addEventListener("click", function () {
+        window.TimePathSettingsForm.open({ onSaved: renderList });
+    });
+
+    // ---- Row interactions ----
+    window.TimePathUI.bindDelegatedActions(document.getElementById("task-list"), {
+        "row-edit": function (event, actionEl) {
+            var row = actionEl.closest(".task-row");
+            if (!row) return;
+            window.TimePathTaskForm.open(row.dataset.taskId, { onSaved: renderList });
+        },
+        default: function (event, actionEl) {
+            var row = actionEl.closest(".task-row");
+            if (!row) return;
+            openDrawer(row.dataset.taskId);
+        }
+    });
+
+    // ---- Drawer interactions ----
+    document.getElementById("drawer-close-btn").addEventListener("click", closeDrawer);
+    document.getElementById("drawer-edit-btn").addEventListener("click", function () {
+        if (drawerTaskId) window.TimePathTaskForm.open(drawerTaskId, { onSaved: renderList });
+    });
+    document.getElementById("drawer-complete-btn").addEventListener("click", function () {
+        if (!drawerTaskId) return;
+        var task = S.getTask(drawerTaskId);
+        S.updateTask(drawerTaskId, { status: task.status === "done" ? "todo" : "done" });
+        renderList();
+    });
+    document.getElementById("drawer-body").addEventListener("click", function (e) {
+        var toggle = e.target.closest(".subtask-toggle");
+        if (!toggle || !drawerTaskId) return;
+        var subId = toggle.closest("[data-sub-id]").dataset.subId;
+        var task = S.getTask(drawerTaskId);
+        var subtasks = task.subtasks.map(function (s) { return s.id === subId ? Object.assign({}, s, { done: !s.done }) : s; });
+        S.updateTask(drawerTaskId, { subtasks: subtasks });
+        renderList();
+    });
+
+    renderList();
+    renderTasksCalendar();
+})();
+</script>
+</body></html>

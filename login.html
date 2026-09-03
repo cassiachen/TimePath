@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+
+<html class="h-full" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>时程｜TimePath - Sign In</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<script src="shared/tailwind-tokens.js"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": TIMEPATH_TOKENS.colors,
+                    "borderRadius": TIMEPATH_TOKENS.borderRadius,
+                    "spacing": TIMEPATH_TOKENS.spacing,
+                    "fontFamily": TIMEPATH_TOKENS.fontFamily,
+                    "fontSize": TIMEPATH_TOKENS.fontSize
+                },
+            },
+        }
+    </script>
+</head>
+<body class="bg-background text-on-background font-body-md text-body-md h-full antialiased">
+<div class="min-h-screen flex flex-col items-center justify-center p-md">
+
+<div class="w-full max-w-sm mb-lg text-center">
+<h1 class="text-headline-md font-headline-md font-bold text-primary">时程｜TimePath</h1>
+<p data-i18n="auth.brand_tagline" class="font-label-md text-label-md text-on-surface-variant mt-xs uppercase tracking-wider"></p>
+</div>
+
+<div class="w-full max-w-sm bg-surface-container-lowest border border-outline-variant rounded-xl shadow-lg p-lg">
+
+<div class="flex border-b border-outline-variant mb-lg">
+<button id="tab-login" type="button" data-i18n="auth.login_title" class="flex-1 pb-sm font-headline-sm text-headline-sm font-bold text-primary border-b-2 border-primary"></button>
+<button id="tab-register" type="button" data-i18n="auth.register_title" class="flex-1 pb-sm font-headline-sm text-headline-sm font-bold text-on-surface-variant border-b-2 border-transparent"></button>
+</div>
+
+<div id="auth-error" class="hidden mb-md p-sm rounded border border-error bg-error-container text-on-error-container text-body-md"></div>
+<div id="auth-notice" class="hidden mb-md p-sm rounded border border-primary bg-primary-container text-on-primary-container text-body-md"></div>
+
+<form id="auth-form" class="flex flex-col gap-md">
+<div>
+<label data-i18n="auth.email_label" class="block font-label-md text-label-md text-on-surface-variant mb-1"></label>
+<input id="auth-email" type="email" autocomplete="email" required class="w-full bg-surface border border-outline-variant rounded px-3 py-2 text-body-md focus:ring-2 focus:ring-primary focus:border-primary"/>
+</div>
+<div>
+<label data-i18n="auth.password_label" class="block font-label-md text-label-md text-on-surface-variant mb-1"></label>
+<input id="auth-password" type="password" autocomplete="current-password" minlength="6" required class="w-full bg-surface border border-outline-variant rounded px-3 py-2 text-body-md focus:ring-2 focus:ring-primary focus:border-primary"/>
+<p id="password-hint" data-i18n="auth.password_hint" class="hidden font-mono-sm text-mono-sm text-on-surface-variant mt-1"></p>
+</div>
+<button id="auth-submit" type="submit" data-i18n="auth.submit_login" class="mt-sm bg-primary text-on-primary w-full py-sm px-md rounded font-label-md text-label-md hover:bg-primary-container transition-colors active:scale-95"></button>
+</form>
+
+<button id="auth-toggle" type="button" data-i18n="auth.toggle_to_register" class="w-full text-center mt-md font-body-md text-body-md text-primary hover:underline"></button>
+
+<div class="mt-lg pt-md border-t border-outline-variant text-center">
+<a href="today.html" data-i18n="auth.continue_local" class="font-mono-sm text-mono-sm text-on-surface-variant hover:text-primary"></a>
+</div>
+</div>
+
+<div id="lang-switcher" class="mt-lg"></div>
+</div>
+
+<script src="shared/supabase-config.js"></script>
+<script src="shared/supabase-client.js"></script>
+<script src="shared/timepath-utils.js"></script>
+<script src="shared/timepath-i18n.js"></script>
+<script src="shared/timepath-auth.js"></script>
+<script>
+(function () {
+    var T = window.TimePathI18n.t;
+    window.TimePathI18n.applyStatic();
+    var langSwitcher = document.getElementById("lang-switcher");
+    if (langSwitcher) window.TimePathI18n.renderSwitcher(langSwitcher);
+    document.title = "时程｜TimePath · " + T("auth.login_title");
+
+    var mode = "login"; // "login" | "register"
+
+    var tabLogin = document.getElementById("tab-login");
+    var tabRegister = document.getElementById("tab-register");
+    var submitBtn = document.getElementById("auth-submit");
+    var toggleBtn = document.getElementById("auth-toggle");
+    var passwordHint = document.getElementById("password-hint");
+    var errorBox = document.getElementById("auth-error");
+    var noticeBox = document.getElementById("auth-notice");
+    var form = document.getElementById("auth-form");
+    var emailInput = document.getElementById("auth-email");
+    var passwordInput = document.getElementById("auth-password");
+
+    function setMode(next) {
+        mode = next;
+        var isLogin = mode === "login";
+        tabLogin.classList.toggle("text-primary", isLogin);
+        tabLogin.classList.toggle("border-primary", isLogin);
+        tabLogin.classList.toggle("text-on-surface-variant", !isLogin);
+        tabLogin.classList.toggle("border-transparent", !isLogin);
+        tabRegister.classList.toggle("text-primary", !isLogin);
+        tabRegister.classList.toggle("border-primary", !isLogin);
+        tabRegister.classList.toggle("text-on-surface-variant", isLogin);
+        tabRegister.classList.toggle("border-transparent", isLogin);
+        submitBtn.textContent = T(isLogin ? "auth.submit_login" : "auth.submit_register");
+        toggleBtn.textContent = T(isLogin ? "auth.toggle_to_register" : "auth.toggle_to_login");
+        passwordHint.classList.toggle("hidden", isLogin);
+        passwordInput.setAttribute("autocomplete", isLogin ? "current-password" : "new-password");
+        hideMessages();
+    }
+
+    function hideMessages() {
+        errorBox.classList.add("hidden");
+        noticeBox.classList.add("hidden");
+    }
+    function showError(msg) {
+        noticeBox.classList.add("hidden");
+        errorBox.textContent = msg;
+        errorBox.classList.remove("hidden");
+    }
+    function showNotice(msg) {
+        errorBox.classList.add("hidden");
+        noticeBox.textContent = msg;
+        noticeBox.classList.remove("hidden");
+    }
+
+    tabLogin.addEventListener("click", function () { setMode("login"); });
+    tabRegister.addEventListener("click", function () { setMode("register"); });
+    toggleBtn.addEventListener("click", function () { setMode(mode === "login" ? "register" : "login"); });
+
+    form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        hideMessages();
+        var email = emailInput.value.trim();
+        var password = passwordInput.value;
+        if (!email || password.length < 6) return;
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = T(mode === "login" ? "auth.signing_in" : "auth.signing_up");
+
+        var action = mode === "login" ? window.TimePathAuth.signIn(email, password) : window.TimePathAuth.signUp(email, password);
+        action.then(function (data) {
+            if (mode === "register" && !(data && data.session)) {
+                // Email confirmation required — no session yet, stay on this page.
+                showNotice(T("auth.check_email_confirm"));
+                setMode("login");
+                return;
+            }
+            window.location.href = "today.html";
+        }).catch(function (err) {
+            if (err && err.code === "cloud_unavailable") {
+                showError(T("auth.error_cloud_unavailable"));
+            } else {
+                showError((err && err.message) || T("auth.error_generic"));
+            }
+        }).finally(function () {
+            submitBtn.disabled = false;
+            submitBtn.textContent = T(mode === "login" ? "auth.submit_login" : "auth.submit_register");
+        });
+    });
+
+    // If already signed in, skip straight to the app.
+    window.TimePathAuth.ready.then(function () {
+        if (window.TimePathAuth.getUser()) window.location.href = "today.html";
+    });
+})();
+</script>
+</body></html>

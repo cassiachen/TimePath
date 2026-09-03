@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>长期目标｜TimePath</title>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet"/>
+    <script src="shared/tailwind-tokens.js"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: TIMEPATH_TOKENS.colors,
+                    borderRadius: TIMEPATH_TOKENS.borderRadius,
+                    spacing: TIMEPATH_TOKENS.spacing,
+                    fontFamily: TIMEPATH_TOKENS.fontFamily,
+                    fontSize: TIMEPATH_TOKENS.fontSize
+                }
+            }
+        }
+    </script>
+    <style>
+        .timeline-grid {
+            display: grid;
+            grid-template-columns: 64px 1fr;
+            gap: 16px;
+        }
+        .node-card {
+            border-left: 3px solid;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .node-card:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transform: translateY(-2px);
+        }
+        .node-card.level-month { border-left-color: #b75b00; }
+        .node-card.level-week { border-left-color: #7d5260; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md text-body-md min-h-screen flex antialiased">
+<div id="nav-mount"></div>
+<main class="flex-1 ml-0 md:ml-64 flex flex-col min-h-screen bg-background">
+    <!-- TopAppBar -->
+    <header class="flex justify-between items-center h-16 px-margin-desktop bg-surface border-b border-outline-variant sticky top-0 z-20">
+        <div class="flex items-center gap-md">
+            <button class="md:hidden p-sm text-on-surface-variant hover:bg-surface-container rounded-full transition-colors">
+                <span class="material-symbols-outlined">menu</span>
+            </button>
+            <h2 data-i18n="nav.goals" class="text-headline-sm font-headline-sm font-bold text-primary hidden md:block"></h2>
+            <h2 class="text-headline-sm font-headline-sm font-bold text-primary md:hidden">时程｜TimePath</h2>
+        </div>
+        <div class="flex items-center gap-md">
+            <button id="new-goal-btn" class="px-md py-sm rounded bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container transition-colors flex items-center gap-sm">
+                <span class="material-symbols-outlined text-[18px]">add</span><span class="hidden md:inline" data-i18n="goal.new_goal"></span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="flex-1 p-margin-desktop overflow-y-auto">
+        <div class="max-w-7xl mx-auto flex flex-col gap-xl">
+            <!-- Page positioning: what belongs here vs. Today / SOP -->
+            <p data-i18n="goal.page_intro" class="text-body-lg text-on-surface-variant max-w-3xl -mt-md"></p>
+
+            <!-- Goal Picker (only shown with 2+ goals) -->
+            <div id="goal-picker-section" class="hidden flex-col gap-xs">
+                <p id="goal-picker-count" class="text-label-md font-label-md text-on-surface-variant uppercase tracking-wider text-[11px]"></p>
+                <div id="goal-picker" class="flex items-stretch gap-sm overflow-x-auto pb-xs"></div>
+            </div>
+
+            <!-- Goal Overview Card -->
+            <div id="goal-overview" class="bg-surface-container-lowest border border-outline-variant rounded-lg p-lg"></div>
+
+            <!-- Roadmap: visual timeline of the goal's month/week breakdown -->
+            <div id="goal-timeline-section" class="hidden bg-surface-container-lowest border border-outline-variant rounded-lg p-lg">
+                <h3 data-i18n="goal.roadmap_title" class="text-headline-md font-headline-md text-on-surface mb-lg"></h3>
+                <div id="goal-timeline" class="relative"></div>
+            </div>
+
+            <!-- Month -> Week Breakdown -->
+            <div id="breakdown-section" class="bg-surface-container-lowest border border-outline-variant rounded-lg p-lg">
+                <div class="flex items-center justify-between mb-sm">
+                    <div>
+                        <h3 data-i18n="goal.breakdown_title" class="text-headline-md font-headline-md text-on-surface"></h3>
+                        <p data-i18n="goal.breakdown_subtitle" class="text-body-md text-on-surface-variant mt-xs"></p>
+                    </div>
+                    <button id="add-month-btn" class="px-md py-sm rounded bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container transition-colors flex items-center gap-sm text-sm shrink-0">
+                        <span class="material-symbols-outlined text-[16px]">add</span><span data-i18n="goal.add_month" class="hidden sm:inline"></span>
+                    </button>
+                </div>
+                <div id="breakdown-container" class="flex flex-col gap-md mt-lg"></div>
+            </div>
+        </div>
+    </div>
+</main>
+<script src="shared/supabase-config.js"></script>
+<script src="shared/supabase-client.js"></script>
+<script src="shared/timepath-utils.js"></script>
+<script src="shared/timepath-store.js"></script>
+<script src="shared/timepath-goal-store.js"></script>
+<script src="shared/timepath-i18n.js"></script>
+<script src="shared/timepath-auth.js"></script>
+<script src="shared/timepath-sync.js"></script>
+<script src="shared/timepath-migration.js"></script>
+<script src="shared/timepath-nav.js"></script>
+<script src="shared/timepath-app.js"></script>
+<script src="shared/timepath-modal.js"></script>
+<script src="shared/timepath-goal-form.js"></script>
+<script>
+(function () {
+    var U = window.TimePathUtils;
+    var S = window.TimePathGoalStore;
+    var TS = window.TimePathStore;
+    var T = window.TimePathI18n.t;
+
+    var currentGoal = null;
+    var nodeFormModal = null;
+
+    function getStatusBadge(status) {
+        if (status === "done") return '<span class="px-2 py-0.5 rounded bg-status-done/10 text-status-done font-mono-sm text-[10px]">✓ ' + T("status.done") + '</span>';
+        if (status === "paused") return '<span class="px-2 py-0.5 rounded bg-priority-should/10 text-priority-should font-mono-sm text-[10px]">⏸ ' + T("goal.status_paused") + '</span>';
+        return '<span class="px-2 py-0.5 rounded bg-status-progress/10 text-status-progress font-mono-sm text-[10px]">○ ' + T("goal.status_active") + '</span>';
+    }
+
+    function getLevelLabel(level) {
+        return T("goal.level_" + level) || level;
+    }
+
+    function normalizeNodeTaskIds(node) {
+        if (!node || !Array.isArray(node.linkedTaskIds)) return [];
+        var seen = {};
+        return node.linkedTaskIds.filter(function (taskId) {
+            if (!taskId || seen[taskId]) return false;
+            seen[taskId] = true;
+            return true;
+        });
+    }
+
+    function getLinkedTasksHtml(node) {
+        var linkedTaskIds = normalizeNodeTaskIds(node);
+        if (!linkedTaskIds.length) return '';
+        var tasks = linkedTaskIds.map(function (taskId) {
+            var task = TS.getTask(taskId);
+            return task ? '<div class="inline-flex items-center gap-xs bg-primary-container text-on-primary-container px-2 py-0.5 rounded text-[11px]">' +
+                '<span>' + U.escapeHtml(task.title) + '</span>' +
+                '<button data-action="unlink-task" data-task-id="' + taskId + '" class="hover:opacity-75">✕</button>' +
+                '</div>' : '';
+        }).join('');
+        return tasks ? '<div class="flex flex-wrap gap-xs mt-sm">' + tasks + '</div>' : '';
+    }
+
+    function renderGoalPicker(goals) {
+        var section = document.getElementById("goal-picker-section");
+        if (goals.length < 2) { section.classList.add("hidden"); section.classList.remove("flex"); return; }
+        section.classList.remove("hidden"); section.classList.add("flex");
+        document.getElementById("goal-picker-count").textContent = T("goal.goal_count", { count: goals.length });
+        document.getElementById("goal-picker").innerHTML = goals.map(function (g) {
+            var active = currentGoal && g.id === currentGoal.id;
+            var summary = S.getGoalSummary(g.id);
+            var progress = summary ? summary.progress : 0;
+            var remaining = summary ? summary.remainingDays : 0;
+            var remainingLabel = remaining > 0 ? T("goal.days_remaining", { days: remaining }) : T("goal.overdue_label");
+            var barColor = summary && summary.gap >= 0 ? "bg-status-done" : "bg-priority-must";
+            return '<button data-goal-id="' + g.id + '" class="text-left border rounded p-sm flex flex-col gap-0.5 transition-colors shrink-0 w-40 ' +
+                (active ? "border-primary bg-surface-container-lowest" : "border-outline-variant bg-surface hover:bg-surface-container-low") +
+                '"><div class="flex items-center justify-between gap-xs"><span class="font-label-md text-on-surface-variant uppercase tracking-wider text-[9px] truncate flex-1 min-w-0">' + U.escapeHtml(g.category) + '</span>' +
+                '<span class="font-mono-sm text-[9px] text-on-surface-variant shrink-0">' + remainingLabel + '</span></div>' +
+                '<h4 class="font-label-md text-label-md text-on-surface font-bold truncate">' + U.escapeHtml(g.name) + '</h4>' +
+                '<div class="flex items-center gap-xs"><div class="flex-1 h-1 bg-surface-container rounded-full overflow-hidden"><div class="h-full ' + barColor + '" style="width:' + progress + '%"></div></div>' +
+                '<span class="font-mono-sm text-[10px] text-on-surface-variant shrink-0">' + progress + '%</span></div></button>';
+        }).join("");
+    }
+
+    function renderOverview(goal) {
+        if (!goal) {
+            document.getElementById("goal-overview").innerHTML = '<p class="text-on-surface-variant">' + T("goal.no_goals") + '</p>';
+            return;
+        }
+        var summary = S.getGoalSummary(goal.id);
+        var dateRange = goal.startDate + ' → ' + goal.endDate;
+        var gapColor = summary && summary.gap >= 0 ? 'text-status-done' : 'text-priority-must';
+        var html = '<div class="flex flex-col gap-lg"><div class="flex flex-col md:flex-row md:items-end justify-between gap-md pb-lg border-b border-outline-variant"><div><p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">' + U.escapeHtml(goal.category) + '</p><h1 class="font-headline-lg text-headline-lg text-on-surface mt-xs">' + U.escapeHtml(goal.name) + '</h1><p class="text-body-lg text-on-surface-variant mt-sm">' + (goal.description ? U.escapeHtml(goal.description) : T("goal.no_description")) + '</p></div><div class="flex gap-sm"><button id="goal-edit-btn" class="px-md py-sm rounded border border-outline-variant text-on-surface hover:bg-surface-container font-label-md text-label-md">' + T("common.edit") + '</button></div></div><div class="flex items-center gap-sm text-on-surface-variant font-mono-sm text-mono-sm mb-lg"><span>' + dateRange + '</span><span class="ml-auto px-2 py-0.5 rounded bg-surface-container text-on-surface">' + T("goal.days_remaining", { days: summary ? summary.remainingDays : 0 }) + '</span></div><div class="grid grid-cols-2 md:grid-cols-4 gap-md"><div class="bg-surface border border-outline-variant rounded p-md"><p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-[10px]">' + T("goal.summary_progress") + '</p><p class="mt-sm font-headline-md text-headline-md text-status-done">' + (summary ? summary.progress : 0) + '%</p></div><div class="bg-surface border border-outline-variant rounded p-md"><p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-[10px]">' + T("goal.summary_time") + '</p><p class="mt-sm font-headline-md text-headline-md text-status-progress">' + (summary ? summary.timeProgress : 0) + '%</p></div><div class="bg-surface border border-outline-variant rounded p-md"><p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-[10px]">' + T("goal.summary_gap") + '</p><p class="mt-sm font-headline-md text-headline-md ' + gapColor + '">' + (summary ? (summary.gap >= 0 ? '+' : '') + summary.gap : 0) + '%</p></div><div class="bg-surface border border-outline-variant rounded p-md"><p class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider text-[10px]">' + T("goal.status_label") + '</p><p class="mt-sm font-headline-md text-headline-md text-on-surface">' + (summary ? summary.done : 0) + '/' + (summary ? summary.total : 0) + '</p></div></div></div>';
+        document.getElementById("goal-overview").innerHTML = html;
+        document.getElementById("goal-edit-btn").addEventListener("click", function () {
+            window.TimePathGoalForm.open(goal.id, { onSaved: renderAll });
+        });
+    }
+
+    function renderWeekCard(node) {
+        var timeRange = (node.startDate || "-") + " → " + (node.endDate || "-");
+        return '<div class="node-card level-week bg-surface border border-outline-variant rounded p-sm flex flex-col gap-xs" data-node-id="' + node.id + '">' +
+            '<div class="flex flex-col sm:flex-row sm:items-start justify-between gap-sm"><div class="flex-1 min-w-0">' +
+            '<div class="flex items-center gap-sm flex-wrap"><span class="px-2 py-0.5 rounded border border-outline-variant text-[10px] font-label-md">' + getLevelLabel(node.level) + '</span>' +
+            '<h5 class="font-label-md text-label-md text-on-surface font-bold">' + U.escapeHtml(node.title) + '</h5>' + getStatusBadge(node.status) + '</div>' +
+            (node.description ? '<p class="text-body-md text-on-surface-variant mt-xs">' + U.escapeHtml(node.description) + '</p>' : '') +
+            '<p class="font-mono-sm text-[11px] text-on-surface-variant mt-xs">' + timeRange + '</p>' +
+            getLinkedTasksHtml(node) +
+            '</div><div class="flex gap-xs flex-wrap justify-end shrink-0">' +
+            '<button data-node-action="create-task" data-node-id="' + node.id + '" class="text-on-surface-variant hover:text-primary text-xs font-label-md">' + T("goal.create_task") + '</button>' +
+            '<button data-node-action="toggle-status" data-node-id="' + node.id + '" class="text-on-surface-variant hover:text-primary text-xs font-label-md">' + T("goal.toggle_status") + '</button>' +
+            '<button data-node-action="edit-node" data-node-id="' + node.id + '" class="text-on-surface-variant hover:text-primary text-xs font-label-md">' + T("common.edit") + '</button>' +
+            '<button data-node-action="delete-node" data-node-id="' + node.id + '" class="text-priority-must hover:opacity-75 text-xs font-label-md">' + T("goal.delete_node") + '</button>' +
+            '</div></div></div>';
+    }
+
+    function renderMonthCard(goalId, node) {
+        var timeRange = (node.startDate || "-") + " → " + (node.endDate || "-");
+        var weeks = S.getChildNodes(goalId, node.id);
+        var weeksHtml = weeks.length
+            ? '<div class="pl-lg mt-sm flex flex-col gap-sm border-l-2 border-outline-variant/50">' + weeks.map(renderWeekCard).join("") + '</div>'
+            : '';
+        return '<div class="node-card level-month bg-surface border border-outline-variant rounded-lg p-md flex flex-col gap-sm" data-node-id="' + node.id + '">' +
+            '<div class="flex flex-col sm:flex-row sm:items-start justify-between gap-sm"><div class="flex-1 min-w-0">' +
+            '<div class="flex items-center gap-sm flex-wrap"><span class="px-2 py-0.5 rounded border border-outline-variant text-[10px] font-label-md">' + getLevelLabel(node.level) + '</span>' +
+            '<h4 class="font-headline-sm text-headline-sm text-on-surface">' + U.escapeHtml(node.title) + '</h4>' + getStatusBadge(node.status) + '</div>' +
+            (node.description ? '<p class="text-body-md text-on-surface-variant mt-sm">' + U.escapeHtml(node.description) + '</p>' : '') +
+            '<p class="font-mono-sm text-mono-sm text-on-surface-variant mt-sm">' + timeRange + '</p>' +
+            getLinkedTasksHtml(node) +
+            '</div><div class="flex gap-xs flex-wrap justify-end shrink-0">' +
+            '<button data-node-action="create-task" data-node-id="' + node.id + '" class="text-on-surface-variant hover:text-primary text-xs font-label-md">' + T("goal.create_task") + '</button>' +
+            '<button data-node-action="toggle-status" data-node-id="' + node.id + '" class="text-on-surface-variant hover:text-primary text-xs font-label-md">' + T("goal.toggle_status") + '</button>' +
+            '<button data-node-action="edit-node" data-node-id="' + node.id + '" class="text-on-surface-variant hover:text-primary text-xs font-label-md">' + T("common.edit") + '</button>' +
+            '<button data-node-action="delete-node" data-node-id="' + node.id + '" class="text-priority-must hover:opacity-75 text-xs font-label-md">' + T("goal.delete_node") + '</button>' +
+            '</div></div>' +
+            weeksHtml +
+            '<button data-node-action="add-week" data-node-id="' + node.id + '" class="text-primary hover:opacity-75 text-xs font-label-md text-left mt-xs">' + T("goal.add_week_to_month") + '</button>' +
+            '</div>';
+    }
+
+    function nodeStatusColor(status) {
+        return status === "done" ? "bg-status-done" : status === "paused" ? "bg-priority-should" : "bg-status-progress";
+    }
+
+    function monthShortLabel(monthIndex1) {
+        var lang = window.TimePathI18n.getLang();
+        return new Date(2000, monthIndex1 - 1, 1).toLocaleDateString(lang === "zh" ? "zh-CN" : "en-US", { month: "short" });
+    }
+
+    function monthNodeForCalendarMonth(months, year, monthIndex1) {
+        return months.find(function (m) {
+            var d = U.parseDate(m.startDate);
+            return d.getFullYear() === year && (d.getMonth() + 1) === monthIndex1;
+        }) || null;
+    }
+
+    // Roadmap: one row per calendar year the goal spans, with each of that
+    // year's months plotted as a waypoint along the row (positioned by real
+    // day-of-year, so month length differences show). A waypoint is filled
+    // and colored by status if a month node already exists there, or a hollow
+    // "+" if not — every waypoint is clickable to set up (or edit) that
+    // month's plan, per the goal's own long-term, multi-year scope.
+    function renderTimeline(goal) {
+        var section = document.getElementById("goal-timeline-section");
+        if (!goal) { section.classList.add("hidden"); return; }
+        section.classList.remove("hidden");
+
+        var months = S.getNodesByLevel(goal.id, "month");
+        var startYear = U.parseDate(goal.startDate).getFullYear();
+        var endYear = U.parseDate(goal.endDate).getFullYear();
+        var today = U.todayStr();
+
+        var yearsHtml = "";
+        for (var year = startYear; year <= endYear; year++) {
+            // Collect just the calendar months of this year that actually fall
+            // within the goal's date range first, so points can be positioned
+            // across THIS row's own span — not the full Jan-Dec calendar year.
+            // Using the full year as the 0-100% domain meant a short goal
+            // (e.g. just June-July) had its two points clustered into a
+            // narrow ~17% sliver of the track, close enough to overlap.
+            var rowMonths = [];
+            for (var mi = 1; mi <= 12; mi++) {
+                var monthStartDate = new Date(year, mi - 1, 1);
+                var monthEndDate = new Date(year, mi, 0);
+                var monthStartStr = U.formatDate(monthStartDate);
+                var monthEndStr = U.formatDate(monthEndDate);
+                if (monthEndStr < goal.startDate || monthStartStr > goal.endDate) continue;
+                rowMonths.push({ mi: mi, startDate: monthStartDate, startStr: monthStartStr, endStr: monthEndStr });
+            }
+            var rowStartMs = rowMonths.length ? rowMonths[0].startDate.getTime() : 0;
+            var rowSpanMs = rowMonths.length > 1 ? rowMonths[rowMonths.length - 1].startDate.getTime() - rowStartMs : 0;
+            var pointsHtml = "";
+            rowMonths.forEach(function (rm) {
+                var clampedStart = rm.startStr < goal.startDate ? goal.startDate : rm.startStr;
+                var clampedEnd = rm.endStr > goal.endDate ? goal.endDate : rm.endStr;
+                var pct = rowSpanMs > 0 ? (rm.startDate.getTime() - rowStartMs) / rowSpanMs * 100 : 0;
+                var node = monthNodeForCalendarMonth(months, year, rm.mi);
+                var isCurrentMonth = today >= rm.startStr && today <= rm.endStr;
+                var dotClasses = node
+                    ? "w-3 h-3 rounded-full " + nodeStatusColor(node.status)
+                    : "w-3 h-3 rounded-full border-2 border-dashed border-outline-variant bg-surface";
+                pointsHtml += '<button type="button" class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 flex flex-col items-center gap-1 group" style="left:' + pct + '%" ' +
+                    'data-month-point="1" data-node-id="' + (node ? node.id : '') + '" data-start="' + clampedStart + '" data-end="' + clampedEnd + '">' +
+                    '<span class="' + dotClasses + ' group-hover:scale-125 transition-transform' + (isCurrentMonth ? ' ring-2 ring-primary ring-offset-2 ring-offset-surface-container-lowest' : '') + '"></span>' +
+                    '<span class="font-mono-sm text-[9px] text-on-surface-variant group-hover:text-primary whitespace-nowrap">' + monthShortLabel(rm.mi) + '</span>' +
+                    (node ? '<span class="absolute top-6 hidden group-hover:block whitespace-nowrap bg-surface border border-outline-variant rounded px-2 py-1 text-[10px] text-on-surface shadow-lg z-20">' + U.escapeHtml(node.title) + '</span>' : '') +
+                    '</button>';
+            });
+            var pointCount = rowMonths.length;
+            var trackMinWidth = Math.max(280, pointCount * 56);
+            // overflow-x-auto forces overflow-y to compute as "auto" too (an
+            // axis can't stay "visible" while the other isn't) — since the
+            // track itself is only h-3 tall, that silently clipped the dots
+            // and month labels sitting above/below it. Generous top/bottom
+            // padding on the scroll wrapper gives them room so nothing clips.
+            yearsHtml += '<div class="mb-xl last:mb-0">' +
+                '<p class="font-mono-sm text-[11px] text-on-surface-variant uppercase tracking-wider mb-lg">' + year + '</p>' +
+                '<div class="overflow-x-auto pt-3 pb-10"><div class="relative h-3 border-t-2 border-outline-variant mx-3" style="min-width:' + trackMinWidth + 'px">' + pointsHtml + '</div></div>' +
+                '</div>';
+        }
+
+        document.getElementById("goal-timeline").innerHTML = yearsHtml;
+    }
+
+    function renderBreakdown(goal) {
+        var section = document.getElementById("breakdown-section");
+        if (!goal) { section.classList.add("hidden"); return; }
+        section.classList.remove("hidden");
+        var months = S.getNodesByLevel(goal.id, "month");
+        document.getElementById("breakdown-container").innerHTML = months.length
+            ? months.map(function (m) { return renderMonthCard(goal.id, m); }).join("")
+            : '<p class="text-on-surface-variant py-md">' + T("goal.no_monthly_goals") + '</p>';
+    }
+
+    function renderAll() {
+        var goals = S.listGoals();
+        renderGoalPicker(goals);
+        if (!goals.length) {
+            currentGoal = null;
+            renderOverview(null);
+            renderTimeline(null);
+            renderBreakdown(null);
+            return;
+        }
+        if (!currentGoal || !goals.some(function (goal) { return goal.id === currentGoal.id; })) {
+            currentGoal = goals[0];
+        }
+        renderOverview(currentGoal);
+        renderTimeline(currentGoal);
+        renderBreakdown(currentGoal);
+    }
+
+    function upsertLinkedTask(node, taskId) {
+        var existing = Array.isArray(node.linkedTaskIds) ? node.linkedTaskIds.slice() : [];
+        if (existing.indexOf(taskId) === -1) {
+            existing.push(taskId);
+        }
+        return existing;
+    }
+
+    // New nodes default to a real-length window (1 month / 1 week) chained
+    // right after the latest sibling, instead of inheriting the goal's whole
+    // (often multi-month) date range.
+    function latestEndDate(nodes, fallback) {
+        var dates = nodes.map(function (n) { return n.endDate; }).filter(Boolean);
+        if (!dates.length) return fallback;
+        return dates.reduce(function (a, b) { return b > a ? b : a; });
+    }
+
+    function suggestNodeDates(goalId, nodeLevel, parentId) {
+        var fallbackStart = currentGoal ? currentGoal.startDate : U.todayStr();
+        if (nodeLevel === "week") {
+            var parent = parentId ? S.getNodes(goalId).find(function (n) { return n.id === parentId; }) : null;
+            var siblings = parentId ? S.getChildNodes(goalId, parentId) : [];
+            var base = latestEndDate(siblings, parent ? parent.startDate : fallbackStart);
+            var start = siblings.length ? S.addDays(base, 1) : base;
+            return { start: start, end: S.addDays(start, 7) };
+        }
+        var months = S.getNodesByLevel(goalId, "month");
+        var base = latestEndDate(months, fallbackStart);
+        var start = months.length ? S.addDays(base, 1) : base;
+        return { start: start, end: S.addDays(start, 30) };
+    }
+
+    function showNodeForm(goalId, nodeLevel, existingNodeId, parentId, dateOverride) {
+        if (nodeFormModal) nodeFormModal.remove();
+        var existingNode = existingNodeId ? S.getNodes(goalId).find(function (n) { return n.id === existingNodeId; }) : null;
+        var isEdit = !!existingNode;
+        var overlay = document.createElement("div");
+        overlay.className = "fixed inset-0 bg-black/40 flex items-center justify-center z-50";
+        overlay.setAttribute("data-modal-overlay", "true");
+        var modal = document.createElement("div");
+        modal.className = "bg-surface rounded-lg shadow-lg p-lg max-w-sm w-full mx-margin-mobile";
+        var title = (isEdit ? T("common.edit") : T("common.add")) + " " + getLevelLabel(isEdit ? existingNode.level : nodeLevel);
+        var titleVal = isEdit ? existingNode.title : '';
+        var descVal = isEdit ? existingNode.description : '';
+        var suggested = isEdit ? null : (dateOverride || suggestNodeDates(goalId, nodeLevel, parentId));
+        var startVal = isEdit ? existingNode.startDate : suggested.start;
+        var endVal = isEdit ? existingNode.endDate : suggested.end;
+        modal.innerHTML = '<h2 class="text-headline-md font-headline-md text-on-surface mb-lg">' + title + '</h2>' +
+            '<div class="space-y-md"><label class="flex flex-col gap-xs"><span class="font-label-md text-label-md text-on-surface-variant uppercase">' + T("goal.node_title") + '</span><input id="node-title" type="text" value="' + U.escapeHtml(titleVal) + '" class="bg-surface-container border border-outline-variant rounded px-md py-sm text-body-md text-on-surface" />' +
+            '</label><label class="flex flex-col gap-xs"><span class="font-label-md text-label-md text-on-surface-variant uppercase">' + T("goal.node_description") + '</span><textarea id="node-desc" rows="3" class="bg-surface-container border border-outline-variant rounded px-md py-sm text-body-md text-on-surface">' + U.escapeHtml(descVal) + '</textarea>' +
+            '</label><div class="grid grid-cols-2 gap-md"><label class="flex flex-col gap-xs"><span class="font-label-md text-label-md text-on-surface-variant uppercase text-[11px]">' + T("goalForm.start_label") + '</span><input id="node-start" type="date" value="' + startVal + '" class="bg-surface-container border border-outline-variant rounded px-md py-sm text-body-md text-on-surface" />' +
+            '</label><label class="flex flex-col gap-xs"><span class="font-label-md text-label-md text-on-surface-variant uppercase text-[11px]">' + T("goalForm.end_label") + '</span><input id="node-end" type="date" value="' + endVal + '" class="bg-surface-container border border-outline-variant rounded px-md py-sm text-body-md text-on-surface" />' +
+            '</label></div></div><div class="mt-lg flex gap-sm justify-end"><button data-modal-close class="px-md py-sm rounded border border-outline-variant text-on-surface hover:bg-surface-container font-label-md">' + T("common.cancel") + '</button><button id="node-save-btn" class="px-md py-sm rounded bg-primary text-on-primary hover:bg-primary-container font-label-md">' + T("common.save") + '</button></div>';
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+        nodeFormModal = overlay;
+
+        var closeHandler = function () { overlay.remove(); nodeFormModal = null; };
+        window.TimePathModal.attachCommonModalBehavior(overlay, closeHandler);
+
+        document.getElementById("node-save-btn").addEventListener("click", function () {
+            var titleInput = document.getElementById("node-title");
+            var title = titleInput.value.trim();
+            if (!title) {
+                titleInput.classList.add("border-priority-must");
+                titleInput.focus();
+                return;
+            }
+            var patch = {
+                title: title,
+                description: document.getElementById("node-desc").value.trim(),
+                startDate: document.getElementById("node-start").value,
+                endDate: document.getElementById("node-end").value
+            };
+            if (isEdit) {
+                S.updateNode(goalId, existingNodeId, patch);
+            } else {
+                patch.level = nodeLevel;
+                patch.status = "active";
+                patch.parentId = parentId || null;
+                S.addNode(goalId, patch);
+            }
+            closeHandler();
+            renderAll();
+        });
+    }
+
+    document.addEventListener("click", function (e) {
+        if (e.target.closest("[data-action='unlink-task']")) {
+            e.preventDefault();
+            var taskId = e.target.closest("[data-action='unlink-task']").dataset.taskId;
+            if (!currentGoal) return;
+            var allNodes = S.getNodes(currentGoal.id);
+            for (var i = 0; i < allNodes.length; i++) {
+                var node = allNodes[i];
+                if (Array.isArray(node.linkedTaskIds) && node.linkedTaskIds.indexOf(taskId) > -1) {
+                    var nextLinks = node.linkedTaskIds.filter(function (id) { return id !== taskId; });
+                    S.updateNode(currentGoal.id, node.id, { linkedTaskIds: nextLinks });
+                    break;
+                }
+            }
+            renderAll();
+            return;
+        }
+
+        var action = e.target.closest("[data-node-action]");
+        if (!action || !currentGoal) return;
+        var nodeId = action.dataset.nodeId;
+        var node = S.getNodes(currentGoal.id).find(function (n) { return n.id === nodeId; });
+        if (!node) return;
+
+        if (action.dataset.nodeAction === "create-task" || action.dataset.nodeAction === "create-task-from-table") {
+            var task = TS.addTask({ title: node.title, date: U.todayStr(), startTime: "10:00", estimatedMinutes: 60, priority: "should", category: currentGoal.category, status: "todo", note: node.description || "", sopId: null, energy: "mid" });
+            var linkedTaskIds = upsertLinkedTask(node, task.id);
+            S.updateNode(currentGoal.id, node.id, { linkedTaskIds: linkedTaskIds });
+            renderAll();
+        }
+        if (action.dataset.nodeAction === "toggle-status") {
+            S.updateNode(currentGoal.id, node.id, { status: node.status === "done" ? "active" : "done" });
+            renderAll();
+        }
+        if (action.dataset.nodeAction === "edit-node") {
+            showNodeForm(currentGoal.id, node.level, node.id);
+        }
+        if (action.dataset.nodeAction === "delete-node") {
+            window.TimePathModal.confirmDialog(T("goal.confirm_delete_node"), function () {
+                S.deleteNode(currentGoal.id, node.id);
+                renderAll();
+            });
+        }
+        if (action.dataset.nodeAction === "add-week") {
+            showNodeForm(currentGoal.id, "week", null, node.id);
+        }
+    });
+
+    document.getElementById("goal-timeline").addEventListener("click", function (e) {
+        var btn = e.target.closest("[data-month-point]");
+        if (!btn || !currentGoal) return;
+        if (btn.dataset.nodeId) {
+            showNodeForm(currentGoal.id, "month", btn.dataset.nodeId);
+        } else {
+            showNodeForm(currentGoal.id, "month", null, null, { start: btn.dataset.start, end: btn.dataset.end });
+        }
+    });
+
+    document.getElementById("goal-picker").addEventListener("click", function (e) {
+        var btn = e.target.closest("[data-goal-id]");
+        if (!btn) return;
+        var goal = S.getGoal(btn.dataset.goalId);
+        if (!goal) return;
+        currentGoal = goal;
+        renderAll();
+    });
+
+    document.getElementById("new-goal-btn").addEventListener("click", function () {
+        window.TimePathGoalForm.open(null, { onSaved: renderAll });
+    });
+
+    document.getElementById("add-month-btn").addEventListener("click", function () {
+        if (!currentGoal) return;
+        showNodeForm(currentGoal.id, "month");
+    });
+
+    window.TimePathApp.initPage({ active: "goals", titleKey: "nav.goals" });
+    renderAll();
+})();
+</script>
+</body>
+</html>

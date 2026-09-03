@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -f .claude/launch.json && rmdir .claude 2>/dev/null; find . -maxdepth 2 -type d -not -path '*/.git*' | sort)",
+      "Bash(ls -la .claude 2>/dev/null; rmdir .claude 2>&1; ls -la | grep claude)",
+      "Bash(mkdir -p \"C:\\\\Users\\\\chenjingyuan\\\\Desktop\\\\学习资料\\\\我\\\\timevalue\\\\stitch_timevalue v2 UI\\\\code\\\\stitch_dayflow_time_architect\\\\.claude\")",
+      "Bash(py --version)",
+      "Bash(where node *)",
+      "Bash(where npx *)",
+      "Bash(timeout 2 python -m http.server 8766)",
+      "Bash(echo \"exit:$?\")",
+      "PowerShell(Get-Command python -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Command python3 -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-Command py -ErrorAction SilentlyContinue)",
+      "PowerShell(Invoke-WebRequest -Uri \"http://localhost:8765/goals.html\" -UseBasicParsing | Select-Object StatusCode, @{n='len';e={$_.Content.Length}})",
+      "Bash(where.exe node *)",
+      "Bash(git config *)",
+      "Bash(echo \"user.name: [$\\(git config --global user.name\\)]\")",
+      "Bash(echo \"user.email: [$\\(git config --global user.email\\)]\")",
+      "Bash(gh --version)",
+      "Bash(git init *)",
+      "Bash(git add *)"
+    ]
+  }
+}

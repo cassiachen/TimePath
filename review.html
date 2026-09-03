@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>时程｜TimePath - Review</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&amp;family=JetBrains+Mono:wght@400&amp;display=swap" rel="stylesheet"/>
+<script src="shared/tailwind-tokens.js"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": TIMEPATH_TOKENS.colors,
+                    "borderRadius": TIMEPATH_TOKENS.borderRadius,
+                    "spacing": TIMEPATH_TOKENS.spacing,
+                    "fontFamily": TIMEPATH_TOKENS.fontFamily,
+                    "fontSize": TIMEPATH_TOKENS.fontSize
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-surface text-on-surface font-body-md text-body-md antialiased overflow-hidden flex h-screen">
+<div id="nav-mount"></div>
+<!-- Main Content Area -->
+<main class="flex-1 ml-0 md:ml-64 flex flex-col h-screen overflow-y-auto bg-background">
+<!-- TopAppBar -->
+<header class="bg-surface dark:bg-surface border-b border-outline-variant dark:border-outline-variant docked full-width top-0 sticky flex justify-between items-center h-16 px-margin-desktop z-40">
+<div class="flex items-center gap-4">
+<button class="md:hidden p-2 -ml-2 text-on-surface-variant hover:bg-surface-container rounded-full transition-colors">
+<span class="material-symbols-outlined">menu</span>
+</button>
+<h2 data-i18n="review.header_title" class="font-headline-sm text-headline-sm text-on-surface font-semibold"></h2>
+</div>
+<div class="flex items-center gap-2">
+<button class="p-2 text-on-surface-variant hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full cursor-pointer transition-opacity active:opacity-70 flex items-center justify-center">
+<span class="material-symbols-outlined">timer</span>
+</button>
+<button class="p-2 text-on-surface-variant hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full cursor-pointer transition-opacity active:opacity-70 flex items-center justify-center relative">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border border-surface"></span>
+</button>
+<button id="settings-btn" class="p-2 text-on-surface-variant hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full cursor-pointer transition-opacity active:opacity-70 flex items-center justify-center">
+<span class="material-symbols-outlined">settings</span>
+</button>
+</div>
+</header>
+<div class="p-margin-mobile md:p-margin-desktop max-w-7xl mx-auto w-full space-y-8 pb-24">
+<!-- Header Section -->
+<div class="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 border-b border-outline-variant pb-4">
+<div>
+<h2 data-i18n="review.title" class="font-headline-lg text-headline-lg text-on-surface mb-1"></h2>
+<p data-i18n="review.subtitle" class="text-on-surface-variant font-body-md text-body-md"></p>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex bg-surface-container-low p-1 rounded-lg border border-outline-variant">
+<button data-i18n="review.tab_day" class="px-4 py-1.5 text-sm font-label-md rounded bg-surface shadow-sm text-on-surface border border-outline-variant transition-colors"></button>
+<button class="px-4 py-1.5 text-sm font-label-md rounded text-on-surface-variant/50 cursor-not-allowed" disabled="" data-i18n-title="review.coming_v2"><span data-i18n="review.tab_week"></span> <span class="text-[10px] align-super">V2</span></button>
+<button class="px-4 py-1.5 text-sm font-label-md rounded text-on-surface-variant/50 cursor-not-allowed" disabled="" data-i18n-title="review.coming_v2"><span data-i18n="review.tab_month"></span> <span class="text-[10px] align-super">V2</span></button>
+</div>
+<div class="flex items-center gap-1 bg-surface-container-low px-2 py-1 rounded-lg border border-outline-variant text-sm text-on-surface-variant">
+<button id="review-prev-day" class="w-7 h-7 flex items-center justify-center hover:bg-surface-container rounded-full"><span class="material-symbols-outlined text-[16px]">chevron_left</span></button>
+<span id="review-date-label" class="font-mono-sm px-1"></span>
+<button id="review-next-day" class="w-7 h-7 flex items-center justify-center hover:bg-surface-container rounded-full"><span class="material-symbols-outlined text-[16px]">chevron_right</span></button>
+</div>
+</div>
+</div>
+<!-- Smart Insights placeholder (V2) -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg bg-surface-container-low/50">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-on-surface-variant">lightbulb</span>
+<h3 data-i18n="review.insights_title" class="font-headline-md text-headline-md text-on-surface"></h3>
+<span class="text-[10px] text-on-surface-variant border border-outline-variant rounded px-1">V2</span>
+</div>
+<p data-i18n="review.insights_body" class="font-body-md text-body-md text-on-surface-variant"></p>
+</div>
+<!-- Top Row: Stat Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110 duration-300"></div>
+<div class="flex justify-between items-start mb-4 relative z-10">
+<h3 data-i18n="review.completion_rate" class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider"></h3>
+<span id="stat-completion-icon" class="material-symbols-outlined p-1.5 rounded-lg">speed</span>
+</div>
+<div class="flex items-end gap-3 relative z-10"><span id="stat-completion" class="font-headline-lg text-headline-lg text-on-surface">--</span></div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110 duration-300"></div>
+<div class="flex justify-between items-start mb-4 relative z-10">
+<h3 data-i18n="review.tasks_done" class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider"></h3>
+<span class="material-symbols-outlined text-status-done bg-status-done/10 p-1.5 rounded-lg">task_alt</span>
+</div>
+<div class="flex items-end gap-3 relative z-10"><span id="stat-done" class="font-headline-lg text-headline-lg text-on-surface">--</span><span data-i18n="review.completed_suffix" class="text-sm font-body-md text-on-surface-variant mb-1"></span></div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110 duration-300"></div>
+<div class="flex justify-between items-start mb-4 relative z-10">
+<h3 data-i18n="review.total_planned" class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider"></h3>
+<span class="material-symbols-outlined text-status-progress bg-status-progress/10 p-1.5 rounded-lg">schedule</span>
+</div>
+<div class="flex items-end gap-3 relative z-10"><span id="stat-planned" class="font-headline-lg text-headline-lg text-on-surface font-mono-sm">--</span></div>
+</div>
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-bl-full -mr-4 -mt-4 transition-transform group-hover:scale-110 duration-300"></div>
+<div class="flex justify-between items-start mb-4 relative z-10">
+<h3 data-i18n="review.actual_time" class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider"></h3>
+<span class="material-symbols-outlined text-priority-should bg-priority-should/10 p-1.5 rounded-lg">timer</span>
+</div>
+<div class="flex items-end gap-3 relative z-10"><span id="stat-actual" class="font-headline-lg text-headline-lg text-on-surface font-mono-sm">--</span></div>
+</div>
+</div>
+<!-- Middle Row: Chart Area -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg min-h-[20rem] flex flex-col">
+<div class="flex justify-between items-center mb-6">
+<h3 data-i18n="review.exec_chart_title" class="font-headline-md text-headline-md text-on-surface"></h3>
+<div class="flex items-center gap-4 text-sm font-body-md">
+<div class="flex items-center gap-2"><div class="w-3 h-3 bg-surface-variant rounded-sm"></div> <span data-i18n="review.legend_planned" class="text-on-surface-variant"></span></div>
+<div class="flex items-center gap-2"><div class="w-3 h-3 bg-primary rounded-sm"></div> <span data-i18n="review.legend_actual" class="text-on-surface-variant"></span></div>
+</div>
+</div>
+<div id="exec-chart" class="flex-1 relative flex items-end justify-around gap-2 pb-6 border-b border-l border-outline-variant pl-4"></div>
+</div>
+<!-- New Data Points Row -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+<!-- Execution Efficiency -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg flex flex-col">
+<h3 data-i18n="review.execution_efficiency" class="font-headline-sm text-headline-sm text-on-surface mb-6"></h3>
+<div class="flex-1 flex flex-col justify-center items-center">
+<div class="relative w-32 h-32">
+<svg class="w-full h-full transform -rotate-90" viewbox="0 0 36 36">
+<path class="text-surface-variant" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="100, 100" stroke-width="3"></path>
+<path id="efficiency-ring" class="text-primary" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="currentColor" stroke-dasharray="0, 100" stroke-width="3"></path>
+</svg>
+<div class="absolute inset-0 flex flex-col items-center justify-center"><span id="efficiency-value" class="font-headline-lg text-headline-lg text-on-surface">--</span></div>
+</div>
+<p data-i18n="review.efficiency_desc" class="text-sm font-body-md text-on-surface-variant mt-4 text-center"></p>
+</div>
+</div>
+<!-- Delay Reasons -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg flex flex-col">
+<h3 data-i18n="review.delay_reasons" class="font-headline-sm text-headline-sm text-on-surface mb-6"></h3>
+<div id="delay-reasons" class="flex-1 space-y-3 text-sm font-body-md text-on-surface-variant"></div>
+</div>
+<!-- Time by Category -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg flex flex-col">
+<h3 data-i18n="review.time_by_category" class="font-headline-sm text-headline-sm text-on-surface mb-6"></h3>
+<div id="category-breakdown" class="flex-1 space-y-3"></div>
+</div>
+</div>
+<!-- SOP Completion Row -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg mt-6">
+<div class="flex justify-between items-center mb-6">
+<h3 class="font-headline-md text-headline-md text-on-surface flex items-center gap-2">
+                        <span data-i18n="review.sop_completion_title"></span>
+                        <span id="sop-completion-count" class="bg-surface-container text-on-surface-variant text-xs py-0.5 px-2 rounded-full font-mono-sm">0</span>
+</h3>
+</div>
+<div id="sop-completion-list" class="space-y-3"></div>
+</div>
+<!-- Bottom Row: Delayed/Skipped Tasks -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-lg mt-6">
+<div class="flex justify-between items-center mb-6">
+<h3 class="font-headline-md text-headline-md text-on-surface flex items-center gap-2">
+                        <span data-i18n="review.exceptions_title"></span>
+                        <span id="exceptions-count" class="bg-surface-container text-on-surface-variant text-xs py-0.5 px-2 rounded-full font-mono-sm">0</span>
+</h3>
+</div>
+<div id="exceptions-list" class="space-y-4"></div>
+</div>
+</div>
+</main>
+<script src="shared/supabase-config.js"></script>
+<script src="shared/supabase-client.js"></script>
+<script src="shared/timepath-utils.js"></script>
+<script src="shared/timepath-store.js"></script>
+<script src="shared/timepath-i18n.js"></script>
+<script src="shared/timepath-auth.js"></script>
+<script src="shared/timepath-sync.js"></script>
+<script src="shared/timepath-migration.js"></script>
+<script src="shared/timepath-nav.js"></script>
+<script src="shared/timepath-app.js"></script>
+<script src="shared/timepath-modal.js"></script>
+<script src="shared/timepath-render.js"></script>
+<script src="shared/timepath-task-form.js"></script>
+<script src="shared/timepath-settings-form.js"></script>
+<script>
+(function () {
+    var U = window.TimePathUtils, S = window.TimePathStore, T = window.TimePathI18n.t;
+    window.TimePathApp.initPage({ active: "review", titleKey: "nav.review" });
+
+    function renderStats() {
+        var date = S.state.selectedDate;
+        var stats = S.computeDayStats(date);
+        document.getElementById("review-date-label").textContent = U.formatDateLabel(date);
+        document.getElementById("stat-completion").textContent = Math.round(stats.completionRate * 100) + "%";
+        document.getElementById("stat-done").textContent = stats.done + "/" + stats.total;
+        document.getElementById("stat-planned").textContent = U.minutesLabel(stats.plannedMinutes);
+        document.getElementById("stat-actual").textContent = U.minutesLabel(stats.actualMinutes);
+
+        // Completion rate icon: green when most tasks are done, amber midway, red when few are
+        var completionPct = Math.round(stats.completionRate * 100);
+        var completionColor = completionPct >= 70 ? "status-done" : completionPct >= 40 ? "priority-should" : "priority-must";
+        var completionIcon = document.getElementById("stat-completion-icon");
+        completionIcon.className = "material-symbols-outlined p-1.5 rounded-lg text-" + completionColor + " bg-" + completionColor + "/10";
+
+        // Efficiency donut: green close to plan, amber somewhat off, red way over/under
+        var effPct = stats.efficiency == null ? 0 : Math.round(stats.efficiency * 100);
+        document.getElementById("efficiency-value").textContent = stats.efficiency == null ? "--" : effPct + "%";
+        document.getElementById("efficiency-ring").setAttribute("stroke-dasharray", Math.min(effPct, 100) + ", 100");
+        var effColor = stats.efficiency == null ? "on-surface-variant" : (effPct >= 80 && effPct <= 120) ? "status-done" : (effPct >= 50 && effPct <= 160) ? "priority-should" : "priority-must";
+        document.getElementById("efficiency-ring").setAttribute("class", "text-" + effColor);
+
+        // Planned vs actual bar chart, one pair per (non-buffer) task that day
+        var tasks = S.getTasksForDate(date).filter(function (t) { return !t.isBuffer; });
+        var maxMin = Math.max(1, tasks.reduce(function (m, t) { return Math.max(m, t.estimatedMinutes, S.actualMinutesFor(t)); }, 0));
+        var chart = document.getElementById("exec-chart");
+        if (!tasks.length) {
+            chart.innerHTML = '<p class="text-on-surface-variant text-body-md m-auto">' + T("review.no_tasks_day") + '</p>';
+        } else {
+            chart.innerHTML = tasks.map(function (t) {
+                var plannedH = Math.round((t.estimatedMinutes / maxMin) * 100);
+                var actualH = Math.round((S.actualMinutesFor(t) / maxMin) * 100);
+                var label = t.title.length > 10 ? t.title.slice(0, 9) + "…" : t.title;
+                return '<div class="flex items-end gap-1 group relative h-full w-12 z-10" title="' + U.escapeHtml(t.title) + '">' +
+                    '<div class="w-5 bg-surface-variant rounded-t-sm transition-all" style="height:' + Math.max(plannedH, 2) + '%"></div>' +
+                    '<div class="w-5 bg-primary rounded-t-sm transition-all" style="height:' + Math.max(actualH, 2) + '%"></div>' +
+                    '<div class="absolute -bottom-6 w-full text-center text-xs font-mono-sm text-on-surface-variant truncate">' + U.escapeHtml(label) + '</div></div>';
+            }).join("");
+        }
+
+        // Delay reasons
+        var delayEl = document.getElementById("delay-reasons");
+        delayEl.innerHTML = stats.delayReasons.length
+            ? stats.delayReasons.map(function (d) {
+                return '<div class="border-b border-outline-variant/50 pb-2"><span class="text-on-surface font-semibold">' + U.escapeHtml(d.taskTitle) + '</span>' +
+                    '<p>' + (d.reason ? U.escapeHtml(d.reason) : T("review.no_reason")) + ' <span class="text-outline">(' + d.action.replace(/_/g, " ") + ')</span></p></div>';
+            }).join("")
+            : '<p class="text-on-surface-variant">' + T("review.no_delays") + '</p>';
+
+        // Category breakdown
+        var catEl = document.getElementById("category-breakdown");
+        var cats = Object.keys(stats.byCategory);
+        var catMax = Math.max(1, cats.reduce(function (m, c) { return Math.max(m, stats.byCategory[c]); }, 0));
+        var catColors = ["bg-primary", "bg-status-progress", "bg-priority-should", "bg-status-done"];
+        catEl.innerHTML = cats.length
+            ? cats.map(function (c, i) {
+                var pct = Math.round((stats.byCategory[c] / catMax) * 100);
+                return '<div><div class="flex justify-between text-sm font-body-md text-on-surface-variant mb-1"><span>' + U.escapeHtml(c) + '</span><span>' + U.minutesLabel(stats.byCategory[c]) + '</span></div>' +
+                    '<div class="w-full bg-surface-variant rounded-full h-2"><div class="' + catColors[i % catColors.length] + ' h-2 rounded-full" style="width:' + pct + '%"></div></div></div>';
+            }).join("")
+            : '<p class="text-on-surface-variant">' + T("review.no_category") + '</p>';
+
+        // SOP completion: for each task linked to an SOP that day, show how much
+        // of the SOP's steps (task.subtasks, populated from sop.steps when the
+        // task was started from SOP.html) actually got done.
+        var sopTasks = S.getTasksForDate(date).filter(function (t) { return !!t.sopId; });
+        document.getElementById("sop-completion-count").textContent = sopTasks.length + " " + T("review.items_suffix");
+        document.getElementById("sop-completion-list").innerHTML = sopTasks.length
+            ? sopTasks.map(function (t) {
+                var sop = S.getSop(t.sopId);
+                var total = t.subtasks.length;
+                var done = t.subtasks.filter(function (s) { return s.done; }).length;
+                var pct = total ? Math.round((done / total) * 100) : (t.status === "done" ? 100 : 0);
+                var barColor = pct === 100 ? "bg-status-done" : pct > 0 ? "bg-priority-should" : "bg-surface-variant";
+                var stepsLabel = total ? T("review.sop_steps_done", { done: done, total: total }) : window.TimePathRender.statusLabel(t.status, T);
+                return '<div class="flex items-center gap-md p-md border border-outline-variant rounded-lg bg-surface">' +
+                    '<span class="material-symbols-outlined text-[18px] text-primary shrink-0">rule</span>' +
+                    '<div class="flex-1 min-w-0"><div class="flex items-center gap-xs flex-wrap">' +
+                    '<span class="font-label-md text-on-surface font-semibold">' + U.escapeHtml(sop ? sop.name : t.title) + '</span>' +
+                    '<span class="text-on-surface-variant text-xs">· ' + U.escapeHtml(t.title) + '</span></div>' +
+                    '<div class="flex items-center gap-sm mt-xs"><div class="flex-1 h-1.5 bg-surface-variant rounded-full overflow-hidden max-w-[200px]"><div class="h-full ' + barColor + '" style="width:' + pct + '%"></div></div>' +
+                    '<span class="font-mono-sm text-[11px] text-on-surface-variant shrink-0">' + stepsLabel + '</span></div></div>' +
+                    '<span class="shrink-0 px-2 py-0.5 rounded text-[10px] font-mono-sm uppercase ' + U.statusTextClass(t.status) + '">' + window.TimePathRender.statusLabel(t.status, T) + '</span>' +
+                    '</div>';
+            }).join("")
+            : '<p class="text-on-surface-variant">' + T("review.no_sop_today") + '</p>';
+
+        // Exceptions (delayed/skipped)
+        var exceptions = S.getTasksForDate(date).filter(function (t) { return t.status === "delayed" || t.status === "skipped"; });
+        document.getElementById("exceptions-count").textContent = exceptions.length + " " + T("review.items_suffix");
+        document.getElementById("exceptions-list").innerHTML = exceptions.length
+            ? exceptions.map(function (t) {
+                var lastDelay = t.delayHistory && t.delayHistory.length ? t.delayHistory[t.delayHistory.length - 1] : null;
+                var icon = t.status === "delayed" ? "warning" : "cancel";
+                return '<div class="flex items-start gap-4 p-4 border border-outline-variant rounded-lg bg-surface-container-low relative overflow-hidden pl-5">' +
+                    '<div class="absolute left-0 top-0 bottom-0 w-[3px] ' + U.statusDotClass(t.status) + '"></div>' +
+                    '<div class="bg-surface p-2 rounded-lg border border-outline-variant shadow-sm shrink-0 mt-1"><span class="material-symbols-outlined ' + U.statusTextClass(t.status) + '">' + icon + '</span></div>' +
+                    '<div class="flex-1"><div class="flex justify-between items-start mb-1"><h4 class="font-headline-sm text-headline-sm text-on-surface text-base">' + U.escapeHtml(t.title) + '</h4>' +
+                    '<span class="bg-surface border border-outline-variant text-xs py-1 px-2 rounded font-mono-sm uppercase tracking-wider ' + U.statusTextClass(t.status) + '">' + (t.status === "delayed" ? T("status.delayed") : T("status.skipped")) + '</span></div>' +
+                    '<p class="text-sm font-body-md text-on-surface-variant mb-2">' + (lastDelay && lastDelay.reason ? U.escapeHtml(lastDelay.reason) : T("review.no_reason_given")) + '</p>' +
+                    '<div class="flex items-center gap-4 text-xs font-mono-sm text-outline"><span class="flex items-center gap-1"><span class="material-symbols-outlined text-[14px]">schedule</span> ' + T("review.originally") + ' ' + t.startTime + '</span></div>' +
+                    '</div></div>';
+            }).join("")
+            : '<p class="text-on-surface-variant">' + T("review.no_exceptions") + '</p>';
+    }
+
+    document.getElementById("review-prev-day").addEventListener("click", function () {
+        S.state.selectedDate = U.addDays(S.state.selectedDate, -1); S.save(); renderStats();
+    });
+    document.getElementById("review-next-day").addEventListener("click", function () {
+        S.state.selectedDate = U.addDays(S.state.selectedDate, 1); S.save(); renderStats();
+    });
+    document.getElementById("quick-add-btn").addEventListener("click", function () {
+        window.TimePathTaskForm.open(null, { onSaved: renderStats });
+    });
+    document.getElementById("settings-btn").addEventListener("click", function () {
+        window.TimePathSettingsForm.open({ onSaved: renderStats });
+    });
+
+    renderStats();
+})();
+</script>
+</body></html>
