@@ -141,8 +141,11 @@
         action.then(function (data) {
             if (mode === "register" && !(data && data.session)) {
                 // Email confirmation required — no session yet, stay on this page.
-                showNotice(T("auth.check_email_confirm"));
+                // setMode() calls hideMessages() internally, so it must run BEFORE
+                // showNotice() — otherwise it immediately re-hides the notice we
+                // just set.
                 setMode("login");
+                showNotice(T("auth.check_email_confirm"));
                 return;
             }
             window.location.href = "today.html";

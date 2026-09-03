@@ -220,6 +220,9 @@
     });
 
     renderList();
+    // Cloud data can arrive after this page already rendered from LocalStorage
+    // (login pull, or first-login migration) — re-render once it lands.
+    window.addEventListener("timepath:hydrated", renderList);
 })();
 </script>
 </body></html>

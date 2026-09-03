@@ -663,6 +663,9 @@
     if (!S.state.budgetConfigured) {
         window.TimePathSettingsForm.open({ isFirstRun: true, onSaved: renderAll });
     }
+    // Cloud data can arrive after this page already rendered from LocalStorage
+    // (login pull, or first-login migration) — re-render once it lands.
+    window.addEventListener("timepath:hydrated", function () { initCalMonth(); renderAll(); });
     setInterval(function () {
         document.querySelectorAll(".js-elapsed").forEach(function (el) {
             var cardEl = el.closest("[data-task-id]");

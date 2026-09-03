@@ -507,6 +507,11 @@
 
     window.TimePathApp.initPage({ active: "goals", titleKey: "nav.goals" });
     renderAll();
+    // Cloud data can arrive after this page already rendered from LocalStorage
+    // (login pull, or first-login migration) — re-render once it lands.
+    // renderAll() already re-validates currentGoal against the latest list, so
+    // this is safe even if the previously-selected goal no longer exists.
+    window.addEventListener("timepath:hydrated", renderAll);
 })();
 </script>
 </body>

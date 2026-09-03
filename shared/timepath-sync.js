@@ -391,6 +391,13 @@
                 try { localStorage.setItem("timepath:lang", settings.language); } catch (e) {}
             }
         }
+
+        // hydrateFromCloud()/hydrateSettings() write straight to LocalStorage and
+        // don't touch the DOM — a page's already-rendered view (built from seed
+        // data before this async pull finished) would otherwise keep showing
+        // stale content until some unrelated user action happened to re-render
+        // it. Each page listens for this and re-runs its own render function.
+        window.dispatchEvent(new CustomEvent("timepath:hydrated"));
         return true;
     }
 
