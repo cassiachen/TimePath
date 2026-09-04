@@ -181,7 +181,7 @@
 <script>
 (function () {
     var U = window.TimePathUtils, S = window.TimePathStore, T = window.TimePathI18n.t, GS = window.TimePathGoalStore;
-    window.TimePathApp.initPage({ active: "today", showCalendar: true, titleKey: "nav.today" });
+    var migrationPromise = window.TimePathApp.initPage({ active: "today", showCalendar: true, titleKey: "nav.today" });
 
     var calMonth;
     var dismissedOverdue = {};
@@ -735,24 +735,35 @@
             window.TimePathSettingsForm.open({ isFirstRun: true, onSaved: renderAll });
         }
     }
-    // On a brand-new device, the tour runs first (so a first-time user gets
-    // oriented before being asked to configure anything); the budget setup
-    // modal — which would otherwise visually collide with the tour, both
-    // being first-run modals — waits for it to finish or be skipped. Once
-    // the tour has already been seen, there's nothing to wait for.
-    if (window.TimePathOnboarding && !window.TimePathOnboarding.maybeStart([
-        { target: null, titleKey: "onboarding.welcome_title", bodyKey: "onboarding.welcome_body" },
-        { target: "#quick-add-btn", titleKey: "onboarding.quickadd_title", bodyKey: "onboarding.quickadd_body" },
-        { target: "#timeline-container", titleKey: "onboarding.timeline_title", bodyKey: "onboarding.timeline_body" },
-        { target: "#budget-indicator", titleKey: "onboarding.budget_title", bodyKey: "onboarding.budget_body" },
-        { target: 'nav a[href="goals.html"]', titleKey: "onboarding.goals_title", bodyKey: "onboarding.goals_body" },
-        { target: 'nav a[href="sop.html"]', titleKey: "onboarding.sop_title", bodyKey: "onboarding.sop_body" },
-        { target: 'nav a[href="review.html"]', titleKey: "onboarding.review_title", bodyKey: "onboarding.review_body" },
-        { target: "#settings-btn", titleKey: "onboarding.settings_title", bodyKey: "onboarding.settings_body" },
-        { target: "#nav-user-block", titleKey: "onboarding.account_title", bodyKey: "onboarding.account_body" }
-    ], { onComplete: maybeOpenFirstRunBudget })) {
-        maybeOpenFirstRunBudget();
-    }
+    // Waits for migrationPromise (cloud pull/migration decision for a signed-
+    // in user) before deciding whether to show the tour. Checking sooner was
+    // a real bug: a returning user (e.g. right after a password reset) would
+    // land here with only local demo data still in place — the real cloud
+    // data hadn't been pulled down yet — and get shown the new-user tour.
+    // For a signed-out visitor this resolves near-instantly (migration.js
+    // returns immediately with no user), so there's no perceptible delay for
+    // the common case.
+    migrationPromise.then(function () {
+        // On a brand-new device, the tour runs first (so a first-time user
+        // gets oriented before being asked to configure anything); the
+        // budget setup modal — which would otherwise visually collide with
+        // the tour, both being first-run modals — waits for it to finish or
+        // be skipped. Once the tour has already been seen, there's nothing
+        // to wait for.
+        if (window.TimePathOnboarding && !window.TimePathOnboarding.maybeStart([
+            { target: null, titleKey: "onboarding.welcome_title", bodyKey: "onboarding.welcome_body" },
+            { target: "#quick-add-btn", titleKey: "onboarding.quickadd_title", bodyKey: "onboarding.quickadd_body" },
+            { target: "#timeline-container", titleKey: "onboarding.timeline_title", bodyKey: "onboarding.timeline_body" },
+            { target: "#budget-indicator", titleKey: "onboarding.budget_title", bodyKey: "onboarding.budget_body" },
+            { target: 'nav a[href="goals.html"]', titleKey: "onboarding.goals_title", bodyKey: "onboarding.goals_body" },
+            { target: 'nav a[href="sop.html"]', titleKey: "onboarding.sop_title", bodyKey: "onboarding.sop_body" },
+            { target: 'nav a[href="review.html"]', titleKey: "onboarding.review_title", bodyKey: "onboarding.review_body" },
+            { target: "#settings-btn", titleKey: "onboarding.settings_title", bodyKey: "onboarding.settings_body" },
+            { target: "#nav-user-block", titleKey: "onboarding.account_title", bodyKey: "onboarding.account_body" }
+        ], { onComplete: maybeOpenFirstRunBudget })) {
+            maybeOpenFirstRunBudget();
+        }
+    });
 
     // Cloud data can arrive after this page already rendered from LocalStorage
     // (login pull, or first-login migration) — re-render once it lands.

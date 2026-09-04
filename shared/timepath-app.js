@@ -27,11 +27,19 @@
             document.title = options.title;
         }
 
-        // Fire-and-forget: decides migrate-vs-pull for a signed-in user, or does
-        // nothing when signed out. Never blocks the page's own render above.
+        // Fire-and-forget as far as this function's own caller is concerned —
+        // decides migrate-vs-pull for a signed-in user, or does nothing when
+        // signed out, and never blocks the page's own render above. The
+        // promise is still returned (not awaited here) so callers that
+        // specifically need to know once cloud data has actually landed —
+        // e.g. today.html deciding whether to show the new-device onboarding
+        // tour — can wait on it instead of checking local state before the
+        // pull has had a chance to finish.
+        var migrationPromise = Promise.resolve();
         if (window.TimePathMigration && typeof window.TimePathMigration.run === "function") {
-            window.TimePathMigration.run();
+            migrationPromise = window.TimePathMigration.run();
         }
+        return migrationPromise;
     }
 
     window.TimePathApp = { initPage: initPage };

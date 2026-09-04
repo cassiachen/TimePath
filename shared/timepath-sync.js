@@ -379,6 +379,14 @@
         if (window.TimePathGoalStore && window.TimePathGoalStore.hydrateFromCloud) {
             window.TimePathGoalStore.hydrateFromCloud(goals);
         }
+        // hydrateFromCloud() only touches LocalStorage, not the "has this
+        // device ever seen real data" dirty flag — without this, a device
+        // that just pulled down a whole real account (e.g. after a password
+        // reset) still reads as "never touched" and the onboarding tour
+        // wrongly offers itself to a returning user.
+        if ((tasks.length || sops.length || goals.length) && window.TimePathUtils) {
+            window.TimePathUtils.markUserDataDirty();
+        }
 
         var settings = settingsRes && settingsRes.data;
         if (settings) {
