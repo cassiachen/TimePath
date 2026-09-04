@@ -50,17 +50,18 @@
         .task-card.conflict { outline: 2px solid #ba1a1a; outline-offset: 1px; }
         .task-card.dragging { opacity: 0.6; box-shadow: 0 8px 12px -2px rgba(0,0,0,0.2); }
 
-        /* Unified type + tag system for task cards. Every density tier (full/
-           medium/compact) pulls from these same two sizes instead of each
-           picking its own one-off text-[Npx] — that drift (9/10/11/13/15px
-           scattered with no logic) is what made same-density cards look
-           inconsistent with each other. Kept comfortably readable on purpose:
-           when a slot is too short to fit this size, the render functions
-           below drop rows of content (tags, notes, timer controls) rather
-           than shrinking the type further — see COMPACT_THRESHOLD_PX /
-           MEDIUM_THRESHOLD_PX. Title is always 13px bold; every other piece
-           of card text (tags, times, durations, subtask counts) is always
-           11px mono with tabular figures so numbers line up. */
+        /* Unified type + tag system for task cards. Every task card, no
+           matter how short its time slot, pulls from these same two sizes
+           instead of a shorter slot getting its own smaller one-off
+           text-[Npx] — that's what previously made cards of different
+           durations look inconsistent with each other (different ring
+           size, different tag position, different button style). Kept
+           comfortably readable on purpose: when a slot is too short, the
+           unified renderTaskCard() drops whole rows of content (meta, notes,
+           timer controls — see CARD_*_MIN_PX) rather than shrinking the
+           type. Title is always 13px bold; every other piece of card text
+           (tags, times, durations, subtask counts) is always 11px mono with
+           tabular figures so numbers line up. */
         .tp-card-title { font-size: 13px; line-height: 18px; font-weight: 700; }
         .tp-card-meta { font-family: "JetBrains Mono", monospace; font-size: 11px; line-height: 15px; font-variant-numeric: tabular-nums; }
         .tp-tag {
@@ -83,10 +84,6 @@
 <!-- TopAppBar -->
 <header class="flex justify-between items-center h-16 px-margin-desktop bg-surface border-b border-outline-variant sticky top-0 z-20">
 <div class="flex items-center gap-md">
-<!-- Mobile Menu Button -->
-<button class="md:hidden p-sm text-on-surface-variant hover:bg-surface-container rounded-full transition-colors">
-<span class="material-symbols-outlined">menu</span>
-</button>
 <h2 data-i18n="today.schedule_title" class="text-headline-sm font-headline-sm font-bold text-primary hidden md:block"></h2>
 <h2 class="text-headline-sm font-headline-sm font-bold text-primary md:hidden">时程｜TimePath</h2>
 </div>
@@ -145,8 +142,10 @@
 </div>
 </div>
 </div>
-<!-- Smart Suggestion Toast (Footer) -->
-<div class="fixed bottom-6 right-margin-desktop bg-surface-container-highest border border-outline-variant rounded-lg p-sm pr-md shadow-lg flex items-center gap-sm max-w-sm z-50">
+<!-- Smart Suggestion Toast (Footer) — bottom-20 on mobile clears the fixed
+     bottom tab bar (shared/timepath-nav.js); md:bottom-6 restores the
+     original desktop position since that bar doesn't exist there. -->
+<div class="fixed bottom-20 md:bottom-6 right-margin-desktop bg-surface-container-highest border border-outline-variant rounded-lg p-sm pr-md shadow-lg flex items-center gap-sm max-w-sm z-50">
 <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
 <span class="material-symbols-outlined text-[18px]">lightbulb</span>
 </div>
@@ -158,8 +157,9 @@
 </button>
 </div>
 </main>
-<!-- Mobile Floating Action Button (Only visible on small screens) -->
-<button id="mobile-add-btn" class="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-primary text-on-primary rounded-full shadow-[0_4px_8px_rgba(0,0,0,0.15)] flex items-center justify-center z-50 hover:scale-105 active:scale-95 transition-transform">
+<!-- Mobile Floating Action Button (Only visible on small screens) — bottom-20
+     clears the fixed bottom tab bar, same reasoning as the toast above. -->
+<button id="mobile-add-btn" class="md:hidden fixed bottom-20 right-6 w-14 h-14 bg-primary text-on-primary rounded-full shadow-[0_4px_8px_rgba(0,0,0,0.15)] flex items-center justify-center z-50 hover:scale-105 active:scale-95 transition-transform">
 <span class="material-symbols-outlined text-[24px]">add</span>
 </button>
 <script src="shared/supabase-config.js"></script>
@@ -236,6 +236,14 @@
         }
         return out;
     }
+    // Card content is sized/laid out in JS (not pure CSS), since how much a
+    // card can show is a function of the time-slot height its duration maps
+    // to — so "is this a narrow phone" needs a JS answer too, to decide how
+    // much of that content actually fits. Matches Tailwind's md breakpoint.
+    function isMobileViewport() {
+        return window.innerWidth < 768;
+    }
+
     function elapsedLabel(task) {
         var mins = S.actualMinutesFor(task);
         var totalSec = Math.floor(mins * 60);
@@ -259,9 +267,29 @@
         return nowMin > endMin;
     }
 
-    function renderTaskCard(task) {
+    // ONE card template for every duration — this replaced 3 separate
+    // functions (full/medium/compact) that each had their own ring size,
+    // button style, and spacing, which was exactly the "why does the tag
+    // jump around, why is the ring a different size" inconsistency this was
+    // rewritten to fix. Every visual detail (ring size/position, tag style,
+    // "开始" button, the distance from the left edge to the title) is fixed
+    // — a short task never gets a shrunk-down version of any of these.
+    // What varies is only WHICH optional blocks are included, chosen by how
+    // tall this task's real time-slot is (slotHeight, in px). A slot too
+    // short even for the always-included ring+tag+title row just gets
+    // clipped by the card's own overflow:hidden — still never shrunk.
+    var CARD_BUTTON_MIN_PX = 46;   // + timer/开始 button on the header row
+    var CARD_META_MIN_PX = 68;     // + duration/energy/goal-badge row
+    var CARD_OVERDUE_MIN_PX = 80;  // + overdue action row (its own line — needs meta's row already showing plus its own ~20px, measured empirically so it never gets clipped)
+    var CARD_NOTE_MIN_PX = 100;    // + note text
+    var CARD_SUBTASK_MIN_PX = 136; // + subtask progress bar — high enough that even the worst case (overdue + note + subtask all present together) still fits, measured empirically
+    function renderTaskCard(task, slotHeight) {
+        slotHeight = slotHeight || Infinity;
+        var isDone = task.status === "done";
+        var overdue = isOverdue(task);
+
         var subtaskProgress = "";
-        if (task.subtasks && task.subtasks.length) {
+        if (slotHeight >= CARD_SUBTASK_MIN_PX && task.subtasks && task.subtasks.length) {
             var doneCount = task.subtasks.filter(function (s) { return s.done; }).length;
             var pct = Math.round((doneCount / task.subtasks.length) * 100);
             subtaskProgress = '<div class="pl-10 pr-sm w-full mt-sm">' +
@@ -269,43 +297,63 @@
                 '<div class="w-full bg-surface-container-highest rounded-full h-1.5"><div class="bg-primary h-1.5 rounded-full" style="width:' + pct + '%"></div></div></div>';
         }
 
-        var ring = task.status === "done"
+        var ring = isDone
             ? '<button type="button" data-action="toggle-complete" title="' + T("tasks.mark_incomplete") + '" class="text-primary hover:opacity-70"><span class="material-symbols-outlined" style="font-variation-settings: \'FILL\' 1;">check_circle</span></button>'
             : '<button type="button" data-action="toggle-complete" title="' + T("tasks.mark_complete") + '" class="w-5 h-5 rounded-full border-2 border-outline-variant mt-1 shrink-0 hover:border-primary transition-colors"></button>';
 
         var timerBlock = "";
-        if (task.runningSince) {
-            timerBlock = '<div class="bg-surface rounded border border-outline-variant p-xs flex items-center gap-sm w-full md:w-auto justify-between md:justify-start">' +
-                '<div class="font-mono-sm text-[15px] text-on-surface font-bold w-14 text-center js-elapsed">' + elapsedLabel(task) + '</div>' +
-                '<div class="flex gap-xs">' +
-                '<button data-action="pause" class="bg-primary text-on-primary w-7 h-7 rounded flex items-center justify-center hover:bg-primary-container transition-colors"><span class="material-symbols-outlined text-[17px]" style="font-variation-settings: \'FILL\' 1;">pause</span></button>' +
-                '<button data-action="complete" class="bg-transparent border border-outline text-on-surface w-7 h-7 rounded flex items-center justify-center hover:bg-surface-container transition-colors"><span class="material-symbols-outlined text-[17px]">stop</span></button>' +
-                '</div></div>';
-        } else if (task.status !== "done") {
-            timerBlock = '<button data-action="start" class="flex items-center gap-1 px-sm py-xs rounded border border-outline text-on-surface hover:bg-surface-container text-body-md shrink-0">' +
-                '<span class="material-symbols-outlined text-[17px]">play_arrow</span>' + T("today.start") + '</button>';
+        if (slotHeight >= CARD_BUTTON_MIN_PX) {
+            if (task.runningSince) {
+                timerBlock = '<div class="bg-surface rounded border border-outline-variant p-xs flex items-center gap-sm w-full md:w-auto justify-between md:justify-start">' +
+                    '<div class="font-mono-sm text-[15px] text-on-surface font-bold w-14 text-center js-elapsed">' + elapsedLabel(task) + '</div>' +
+                    '<div class="flex gap-xs">' +
+                    '<button data-action="pause" class="bg-primary text-on-primary w-7 h-7 rounded flex items-center justify-center hover:bg-primary-container transition-colors"><span class="material-symbols-outlined text-[17px]" style="font-variation-settings: \'FILL\' 1;">pause</span></button>' +
+                    '<button data-action="complete" class="bg-transparent border border-outline text-on-surface w-7 h-7 rounded flex items-center justify-center hover:bg-surface-container transition-colors"><span class="material-symbols-outlined text-[17px]">stop</span></button>' +
+                    '</div></div>';
+            } else if (!isDone) {
+                timerBlock = '<button data-action="start" class="flex items-center gap-1 px-sm py-xs rounded border border-outline text-on-surface hover:bg-surface-container text-body-md shrink-0">' +
+                    '<span class="material-symbols-outlined text-[17px]">play_arrow</span>' + T("today.start") + '</button>';
+            }
         }
 
-        // Full-tier cards are 60min+ (≥120px) — plenty of room, so this is
-        // always the text version. The divider line is deliberate — see
-        // renderTaskCardMedium's matching overdue row for why every tier
-        // uses the same border-t treatment instead of only some of them.
+        // On a narrow phone this same card is much less wide (same slot
+        // height, a fraction of the columns), so the text action row would
+        // wrap and get clipped — icons there regardless of duration. The
+        // divider line itself is deliberate, not just a leftover default.
         var overdueBlock = "";
-        if (isOverdue(task)) {
-            overdueBlock = '<div class="mt-xs pt-xs border-t border-outline-variant flex items-center gap-sm flex-wrap">' +
-                '<span class="tp-card-meta text-error font-bold shrink-0">' + T("today.overdue") + '</span>' +
-                overdueActionsTextHtml() +
-                '</div>';
+        if (overdue && slotHeight >= CARD_OVERDUE_MIN_PX) {
+            overdueBlock = isMobileViewport()
+                ? '<div class="mt-xs pt-xs border-t border-outline-variant flex items-center gap-xs">' +
+                    '<span class="tp-card-meta text-error font-bold shrink-0 mr-0.5">' + T("today.overdue") + '</span>' +
+                    overdueActionsIconsHtml() +
+                    '</div>'
+                : '<div class="mt-xs pt-xs border-t border-outline-variant flex items-center gap-sm flex-wrap">' +
+                    '<span class="tp-card-meta text-error font-bold shrink-0">' + T("today.overdue") + '</span>' +
+                    overdueActionsTextHtml() +
+                    '</div>';
         }
 
-        var titleClasses = "tp-card-title text-on-surface" + (task.status === "done" ? " line-through" : "");
-        var cardOpacity = task.status === "done" ? " opacity-70" : task.status === "delayed" || task.status === "skipped" ? " opacity-50" : "";
+        var titleClasses = "tp-card-title text-on-surface" + (isDone ? " line-through" : "");
+        var cardOpacity = isDone ? " opacity-70" : task.status === "delayed" || task.status === "skipped" ? " opacity-50" : "";
         var conflicts = S.detectConflict(task.date, task.startTime, task.estimatedMinutes, task.templateId || task.id);
         var conflictClass = conflicts.length ? " conflict" : "";
         var linked = GS.findLinkedNode(task.id);
         var goalBadge = linked ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary-container text-on-primary-container tp-card-meta" title="' + U.escapeHtml(linked.goal.name + " · " + linked.node.title) + '">' +
             '<span class="material-symbols-outlined text-[12px]">flag</span>' + U.escapeHtml(linked.goal.name) + '</span>' : "";
 
+        var metaRow = slotHeight >= CARD_META_MIN_PX
+            ? '<div class="flex items-center gap-md mt-xs flex-wrap">' +
+                '<p class="tp-card-meta text-on-surface-variant">' + U.minutesLabel(task.estimatedMinutes) + '</p>' +
+                '<div class="flex items-center gap-1" title="' + T("today.brain_power") + '">' + energyBolts(task.energy) + '</div>' +
+                (goalBadge ? '<span class="hidden md:inline-flex">' + goalBadge + '</span>' : "") +
+                '</div>'
+            : "";
+
+        // Note and the goal badge (inside metaRow) are the two lowest-
+        // priority pieces on mobile specifically — hidden there (not just
+        // visually truncated, so they free up the height they'd otherwise
+        // need), independent of the slotHeight gating above. Still one tap
+        // away via data-action="open" either way.
         return '<div class="task-card ' + priorityClass(task.priority) + ' bg-surface-container-lowest border border-outline rounded p-sm h-full flex flex-col justify-center gap-xs overflow-hidden' + cardOpacity + conflictClass + '" data-task-id="' + task.id + '" draggable="true">' +
             '<div class="flex justify-between items-start gap-sm">' +
             '<div class="flex items-start gap-md pl-sm flex-1 cursor-pointer" data-action="open">' +
@@ -316,12 +364,8 @@
             statusTagHtml(task.status) +
             '<h4 class="' + titleClasses + '">' + U.escapeHtml(task.title) + '</h4>' +
             '</div>' +
-            (task.note ? '<p class="font-body-md text-body-md text-on-surface-variant mt-xs">' + U.escapeHtml(task.note) + '</p>' : "") +
-            '<div class="flex items-center gap-md mt-xs flex-wrap">' +
-            '<p class="tp-card-meta text-on-surface-variant">' + U.minutesLabel(task.estimatedMinutes) + '</p>' +
-            '<div class="flex items-center gap-1" title="' + T("today.brain_power") + '">' + energyBolts(task.energy) + '</div>' +
-            goalBadge +
-            '</div>' +
+            (task.note && slotHeight >= CARD_NOTE_MIN_PX ? '<p class="hidden md:block font-body-md text-body-md text-on-surface-variant mt-xs">' + U.escapeHtml(task.note) + '</p>' : "") +
+            metaRow +
             '</div>' +
             '</div>' +
             timerBlock +
@@ -336,88 +380,6 @@
             '<span class="tp-card-meta text-on-surface-variant uppercase tracking-wider font-bold truncate">' + T("today.buffer_with_duration", { duration: U.minutesLabel(task.estimatedMinutes) }) + '</span></div>';
     }
 
-    // A single-line fallback for slots too short to fit the full card (badges,
-    // meta row, timer, subtasks) without breaking the timeline's alignment to
-    // real time — full details are still one click away via data-action="open".
-    function renderTaskCardCompact(task) {
-        var overdue = isOverdue(task);
-        return '<div class="task-card ' + priorityClass(task.priority) + ' bg-surface-container-lowest border rounded h-full flex items-center gap-xs px-xs cursor-pointer overflow-hidden' + (task.status === "done" ? " opacity-70" : "") + (overdue ? " border-error" : " border-outline") + '" data-task-id="' + task.id + '" data-action="open" draggable="true">' +
-            (overdue ? '<span class="material-symbols-outlined text-[11px] text-error shrink-0">warning</span>' : '<span class="tp-card-meta text-on-surface-variant shrink-0">' + task.startTime + '</span>') +
-            '<span class="tp-card-title text-on-surface truncate' + (task.status === "done" ? " line-through" : "") + '">' + U.escapeHtml(task.title) + '</span>' +
-            '</div>';
-    }
-
-    // A leaner middle tier for short-but-not-tiny slots: full header + meta
-    // still show, but the timer and overdue menu shrink to icon-sized
-    // controls and subtasks become a plain "2/4" instead of a labeled bar —
-    // by design, so short tasks intentionally show less rather than relying
-    // on overflow:hidden to silently clip whatever doesn't fit.
-    function renderTaskCardMedium(task) {
-        var isDone = task.status === "done";
-        var overdue = isOverdue(task);
-        var conflicts = S.detectConflict(task.date, task.startTime, task.estimatedMinutes, task.templateId || task.id);
-        var conflictClass = conflicts.length ? " conflict" : "";
-        var cardOpacity = isDone ? " opacity-70" : (task.status === "delayed" || task.status === "skipped") ? " opacity-50" : "";
-        var linked = GS.findLinkedNode(task.id);
-
-        var ring = isDone
-            ? '<button type="button" data-action="toggle-complete" title="' + T("tasks.mark_incomplete") + '" class="text-primary shrink-0 flex items-center"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: \'FILL\' 1;">check_circle</span></button>'
-            : '<button type="button" data-action="toggle-complete" title="' + T("tasks.mark_complete") + '" class="w-3.5 h-3.5 rounded-full border-2 border-outline-variant shrink-0 hover:border-primary transition-colors"></button>';
-
-        // 20px tap targets, not the previous 16px — those read as too small
-        // to comfortably hit, especially on a touch screen.
-        var timerIcons = "";
-        if (task.runningSince) {
-            timerIcons = '<span class="tp-card-meta text-primary font-bold js-elapsed shrink-0">' + elapsedLabel(task) + '</span>' +
-                '<button data-action="pause" title="' + T("today.start") + '" class="w-5 h-5 rounded bg-primary text-on-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[13px]" style="font-variation-settings: \'FILL\' 1;">pause</span></button>' +
-                '<button data-action="complete" title="' + T("tasks.mark_complete") + '" class="w-5 h-5 rounded border border-outline text-on-surface flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[13px]">stop</span></button>';
-        } else if (!isDone) {
-            timerIcons = '<button data-action="start" title="' + T("today.start") + '" class="w-5 h-5 rounded border border-outline text-on-surface flex items-center justify-center shrink-0 hover:bg-surface-container"><span class="material-symbols-outlined text-[13px]">play_arrow</span></button>';
-        }
-
-        var metaBits = [U.minutesLabel(task.estimatedMinutes)];
-        if (task.subtasks && task.subtasks.length) {
-            var doneCount = task.subtasks.filter(function (s) { return s.done; }).length;
-            metaBits.push(doneCount + "/" + task.subtasks.length);
-        }
-
-        // Everything lives on one line — ring, tags, title, duration, timer —
-        // instead of the title getting its own row above a second row of
-        // tag/meta/timer. Tags sit right after the ring, same position as
-        // the full-tier card (see renderTaskCard above), not after the
-        // title — a card's tags shouldn't jump position depending on which
-        // density tier happened to render it. Title is the one flexible
-        // piece (flex-1 + min-w-0, so it's the one that truncates) parked
-        // between the tags and the fixed-width duration/timer. A second row
-        // only appears at all when the task is actually overdue.
-        return '<div class="task-card ' + priorityClass(task.priority) + ' bg-surface-container-lowest border border-outline rounded h-full flex flex-col justify-center gap-0.5 px-xs py-0.5 overflow-hidden' + cardOpacity + conflictClass + '" data-task-id="' + task.id + '" draggable="true">' +
-            '<div class="flex items-center gap-xs cursor-pointer" data-action="open">' +
-            ring +
-            priorityTagHtml(task.priority) +
-            statusTagHtml(task.status) +
-            '<h4 class="tp-card-title text-on-surface truncate flex-1 min-w-0' + (isDone ? " line-through" : "") + '">' + U.escapeHtml(task.title) + '</h4>' +
-            (linked ? '<span class="material-symbols-outlined text-[12px] text-primary shrink-0" title="' + U.escapeHtml(linked.goal.name) + '">flag</span>' : "") +
-            '<span class="tp-card-meta text-on-surface-variant shrink-0">' + metaBits.join(" · ") + '</span>' +
-            '<span class="flex items-center gap-0.5 shrink-0">' + timerIcons + '</span>' +
-            '</div>' +
-            // Only the ~15min-and-under end of this tier is tight enough that
-            // text labels would wrap — everything roomier than that (up
-            // through the rest of medium and all of full-tier) uses text.
-            // Same border-t divider as the full-tier card's overdue row —
-            // every density tier gets the same treatment here, not just some
-            // of them.
-            (overdue ? (task.estimatedMinutes <= OVERDUE_ICONS_MAX_MINUTES
-                ? '<div class="mt-0.5 pt-0.5 border-t border-outline-variant flex items-center gap-xs pl-[18px]">' +
-                    '<span class="tp-card-meta text-error font-bold shrink-0 mr-0.5">' + T("today.overdue") + '</span>' +
-                    overdueActionsIconsHtml() +
-                    '</div>'
-                : '<div class="mt-0.5 pt-0.5 border-t border-outline-variant flex items-center gap-sm flex-wrap pl-[18px]">' +
-                    '<span class="tp-card-meta text-error font-bold shrink-0">' + T("today.overdue") + '</span>' +
-                    overdueActionsTextHtml() +
-                    '</div>') : '') +
-            '</div>';
-    }
-
     // Real proportional day-grid: 1 minute = PX_PER_MIN pixels, spanning the
     // full 24 hours, so the empty space between task blocks IS the free time
     // — no separate "gap" indicator needed, and the NOW line naturally cuts
@@ -425,17 +387,6 @@
     var PX_PER_MIN = 2;
     var DAY_MINUTES = 24 * 60;
     var GUTTER_PX = 52;
-    // Below this, the medium tier's overdue row uses icons instead of text —
-    // see renderTaskCardMedium.
-    var OVERDUE_ICONS_MAX_MINUTES = 15;
-    // A slot has to be tall enough to fit the (comfortably-sized, non-
-    // shrinking) card type before it's promoted to a denser layout — a short
-    // slot instead drops to a leaner tier that shows less content at the
-    // same readable size. Medium's whole non-overdue row now fits in ~26px
-    // since title/tags/duration all share one line, so the compact cutover
-    // (bare icon-or-time + title, no tags at all) only kicks in below that.
-    var COMPACT_THRESHOLD_PX = 26;
-    var MEDIUM_THRESHOLD_PX = 120;
     var lastAutoScrolledDate = null;
 
     // Groups tasks into overlap clusters and assigns each a column within its
@@ -499,10 +450,7 @@
             // to actually fit its slot instead of relying on scroll as a
             // safety net.
             var style = 'top:' + top + 'px; height:' + height + 'px; left:calc(' + leftPct + '% + 3px); width:calc(' + widthPct + '% - 6px); overflow:hidden;';
-            var inner = task.isBuffer ? renderBufferCard(task) :
-                height < COMPACT_THRESHOLD_PX ? renderTaskCardCompact(task) :
-                height < MEDIUM_THRESHOLD_PX ? renderTaskCardMedium(task) :
-                renderTaskCard(task);
+            var inner = task.isBuffer ? renderBufferCard(task) : renderTaskCard(task, height);
             return '<div class="absolute task-block" style="' + style + '">' + inner + '</div>';
         }).join("");
 
