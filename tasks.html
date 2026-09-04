@@ -32,20 +32,23 @@
 <body class="bg-surface text-on-surface font-body-md text-body-md min-h-screen flex antialiased">
 <div id="nav-mount"></div>
 <!-- Main Content Area -->
-<main class="flex-1 ml-0 md:ml-64 flex flex-col min-h-screen">
-<!-- Top App Bar -->
-<header class="bg-surface dark:bg-surface border-b border-outline-variant dark:border-outline-variant docked full-width top-0 sticky flex justify-between items-center h-16 px-margin-desktop z-30 hidden md:flex">
+<main class="flex-1 ml-0 md:ml-64 flex flex-col min-h-screen pb-20 md:pb-0">
+<!-- Top App Bar. Was hidden md:flex — fully invisible on mobile with no
+     other way to reach the settings button — now visible at every width;
+     the search input alone hides below sm since it's the one piece too
+     wide to share a row with the icon buttons on a narrow phone. -->
+<header class="bg-surface dark:bg-surface border-b border-outline-variant dark:border-outline-variant docked full-width top-0 sticky flex justify-between items-center h-16 px-margin-mobile md:px-margin-desktop z-30">
 <div class="flex-1 flex items-center gap-md">
-<div class="relative w-full max-w-md">
+<div class="relative w-full max-w-md hidden sm:block">
 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
 <input id="task-search" data-i18n-placeholder="common.search_tasks" class="w-full pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant rounded-full font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all" placeholder="" type="text"/>
 </div>
 </div>
 <div class="flex items-center gap-sm">
-<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full cursor-pointer transition-opacity active:opacity-70">
+<button class="hidden md:flex w-10 h-10 items-center justify-center text-on-surface-variant hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full cursor-pointer transition-opacity active:opacity-70">
 <span class="material-symbols-outlined">timer</span>
 </button>
-<button class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full cursor-pointer transition-opacity active:opacity-70 relative">
+<button class="hidden md:flex w-10 h-10 items-center justify-center text-on-surface-variant hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full cursor-pointer transition-opacity active:opacity-70 relative">
 <span class="material-symbols-outlined">notifications</span>
 <span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full"></span>
 </button>

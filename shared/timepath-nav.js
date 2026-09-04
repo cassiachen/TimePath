@@ -46,6 +46,30 @@
         }).join("");
     }
 
+    // Mobile bottom tab bar. Injected straight onto <body> rather than
+    // through the page's own header/main markup — the 5 pages' surrounding
+    // structure differs too much page to page (sop.html has no top header
+    // at all; it's a two-pane layout) to hang a nav off any of them
+    // consistently. This is the ONLY mobile nav surface — there is no
+    // hamburger/drawer alternative, so every page must reserve bottom
+    // padding for it (see today.html etc.) or this bar covers their last
+    // bit of content.
+    function mobileTabBarHtml(active) {
+        // Same 5 destinations as the desktop sidebar, in execution order
+        // (today/tasks/sop/review) with Goals first — matches how the
+        // desktop sidebar visually leads with Goals too.
+        var tabs = [GOAL_LINK, EXEC_LINKS[0], EXEC_LINKS[1], EXEC_LINKS[2], EXEC_LINKS[3]];
+        return '<nav id="mobile-tab-bar" class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface-container-low border-t border-outline-variant flex items-stretch" style="padding-bottom: env(safe-area-inset-bottom)">' +
+            tabs.map(function (tab) {
+                var isActive = tab.key === active;
+                return '<a href="' + tab.href + '" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 min-w-0' + (isActive ? " text-primary" : " text-on-surface-variant") + '">' +
+                    '<span class="material-symbols-outlined text-[22px]"' + (isActive ? ' style="font-variation-settings: \'FILL\' 1;"' : '') + '>' + tab.icon + '</span>' +
+                    '<span class="font-mono-sm text-[10px] truncate' + (isActive ? " font-bold" : "") + '" data-i18n="' + tab.i18n + '"></span>' +
+                    '</a>';
+            }).join("") +
+            '</nav>';
+    }
+
     function calendarHtml() {
         var T = window.TimePathI18n.t;
         var weekdays = ["calendar.mon", "calendar.tue", "calendar.wed", "calendar.thu", "calendar.fri", "calendar.sat", "calendar.sun"];
@@ -87,7 +111,14 @@
             '<div class="w-8 h-8 rounded-full bg-surface-container-high animate-pulse shrink-0"></div>' +
             '<div class="flex-1"><div class="h-3 w-24 bg-surface-container-high rounded animate-pulse"></div></div>' +
             '</div></div>' +
+            '<div class="mt-sm text-center"><span class="font-mono-sm text-[10px] text-on-surface-variant/70">Designed by Cassia</span></div>' +
             '</nav>';
+
+        // Idempotent: re-running render() (shouldn't normally happen, but
+        // cheap to guard) replaces rather than stacking duplicates.
+        var existingTabBar = document.getElementById("mobile-tab-bar");
+        if (existingTabBar) existingTabBar.remove();
+        document.body.insertAdjacentHTML("beforeend", mobileTabBarHtml(opts.active));
 
         if (window.TimePathAuth && typeof window.TimePathAuth.mountNavUser === "function") {
             window.TimePathAuth.mountNavUser();
