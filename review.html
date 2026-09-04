@@ -66,6 +66,16 @@
 <span id="review-date-label" class="font-mono-sm px-1"></span>
 <button id="review-next-day" class="w-7 h-7 flex items-center justify-center hover:bg-surface-container rounded-full"><span class="material-symbols-outlined text-[16px]">chevron_right</span></button>
 </div>
+<div class="flex items-center gap-2">
+<button id="export-csv-btn" class="flex items-center gap-1 px-3 py-1.5 text-sm font-label-md rounded-lg border border-outline-variant text-on-surface-variant hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[16px]">table_view</span>
+<span data-i18n="review.export_csv"></span>
+</button>
+<button id="export-json-btn" class="flex items-center gap-1 px-3 py-1.5 text-sm font-label-md rounded-lg border border-outline-variant text-on-surface-variant hover:bg-surface-container-low transition-colors">
+<span class="material-symbols-outlined text-[16px]">download</span>
+<span data-i18n="review.export_json"></span>
+</button>
+</div>
 </div>
 </div>
 <!-- Smart Insights placeholder (V2) -->
@@ -176,6 +186,7 @@
 <script src="shared/supabase-client.js"></script>
 <script src="shared/timepath-utils.js"></script>
 <script src="shared/timepath-store.js"></script>
+<script src="shared/timepath-goal-store.js"></script>
 <script src="shared/timepath-i18n.js"></script>
 <script src="shared/timepath-auth.js"></script>
 <script src="shared/timepath-sync.js"></script>
@@ -184,6 +195,7 @@
 <script src="shared/timepath-app.js"></script>
 <script src="shared/timepath-modal.js"></script>
 <script src="shared/timepath-render.js"></script>
+<script src="shared/timepath-export.js"></script>
 <script src="shared/timepath-task-form.js"></script>
 <script src="shared/timepath-settings-form.js"></script>
 <script>
@@ -308,6 +320,12 @@
     });
     document.getElementById("settings-btn").addEventListener("click", function () {
         window.TimePathSettingsForm.open({ onSaved: renderStats });
+    });
+    document.getElementById("export-csv-btn").addEventListener("click", function () {
+        window.TimePathExport.exportAllCsv();
+    });
+    document.getElementById("export-json-btn").addEventListener("click", function () {
+        window.TimePathExport.exportJsonBackup();
     });
 
     renderStats();

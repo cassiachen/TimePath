@@ -49,6 +49,31 @@
         }
         .task-card.conflict { outline: 2px solid #ba1a1a; outline-offset: 1px; }
         .task-card.dragging { opacity: 0.6; box-shadow: 0 8px 12px -2px rgba(0,0,0,0.2); }
+
+        /* Unified type + tag system for task cards. Every density tier (full/
+           medium/compact) pulls from these same two sizes instead of each
+           picking its own one-off text-[Npx] — that drift (9/10/11/13/15px
+           scattered with no logic) is what made same-density cards look
+           inconsistent with each other. Kept comfortably readable on purpose:
+           when a slot is too short to fit this size, the render functions
+           below drop rows of content (tags, notes, timer controls) rather
+           than shrinking the type further — see COMPACT_THRESHOLD_PX /
+           MEDIUM_THRESHOLD_PX. Title is always 13px bold; every other piece
+           of card text (tags, times, durations, subtask counts) is always
+           11px mono with tabular figures so numbers line up. */
+        .tp-card-title { font-size: 13px; line-height: 18px; font-weight: 700; }
+        .tp-card-meta { font-family: "JetBrains Mono", monospace; font-size: 11px; line-height: 15px; font-variant-numeric: tabular-nums; }
+        .tp-tag {
+            display: inline-flex; align-items: center; flex-shrink: 0;
+            height: 17px; padding: 0 6px; border-radius: 2px;
+            font-family: "JetBrains Mono", monospace; font-size: 10px; font-weight: 700;
+            letter-spacing: 0.03em; text-transform: uppercase; white-space: nowrap;
+        }
+        .tp-tag-must { background: #ba1a1a; color: #fff; }
+        .tp-tag-should { background: #b75b00; color: #fff; }
+        .tp-tag-optional { color: #4c4546; box-shadow: inset 0 0 0 1px #cfc4c5; }
+        .tp-tag-delayed { background: #ffdad6; color: #93000a; }
+        .tp-tag-skipped { background: #e3e2e2; color: #646464; }
     </style>
 </head>
 <body class="bg-background text-on-background font-body-md text-body-md h-full flex antialiased">
@@ -173,6 +198,34 @@
     function priorityLabel(priority) {
         return priority === "must" ? T("priority.must") : priority === "should" ? T("priority.should") : T("priority.optional");
     }
+    // Single source for the priority/status pills so every card density
+    // renders the exact same markup — no more "full cards have a tag, medium
+    // cards don't" drift between the render functions below.
+    function priorityTagHtml(priority) {
+        var cls = priority === "must" ? "tp-tag-must" : priority === "should" ? "tp-tag-should" : "tp-tag-optional";
+        return '<span class="tp-tag ' + cls + '">' + priorityLabel(priority) + '</span>';
+    }
+    function statusTagHtml(status) {
+        if (status === "delayed") return '<span class="tp-tag tp-tag-delayed">' + T("status.delayed") + '</span>';
+        if (status === "skipped") return '<span class="tp-tag tp-tag-skipped">' + T("status.skipped") + '</span>';
+        return "";
+    }
+    // Icons only for the smallest slots (~15min or less), where the row is
+    // competing with the title/tag/duration for the same one line and text
+    // labels would wrap. Everything with more room than that uses the text
+    // version below instead — see OVERDUE_TEXT_THRESHOLD_PX.
+    function overdueActionsIconsHtml() {
+        return '<button data-action="delay-continue" title="' + T("today.delay_continue") + '" class="w-5 h-5 rounded hover:bg-surface-container flex items-center justify-center text-on-surface-variant shrink-0"><span class="material-symbols-outlined text-[14px]">check</span></button>' +
+            '<button data-action="delay-reschedule" title="' + T("today.delay_reschedule") + '" class="w-5 h-5 rounded hover:bg-surface-container flex items-center justify-center text-on-surface-variant shrink-0"><span class="material-symbols-outlined text-[14px]">edit</span></button>' +
+            '<button data-action="delay-tomorrow" title="' + T("today.delay_tomorrow") + '" class="w-5 h-5 rounded hover:bg-surface-container flex items-center justify-center text-on-surface-variant shrink-0"><span class="material-symbols-outlined text-[14px]">arrow_forward</span></button>' +
+            '<button data-action="delay-abandon" title="' + T("today.delay_abandon") + '" class="w-5 h-5 rounded hover:bg-error-container flex items-center justify-center text-error shrink-0"><span class="material-symbols-outlined text-[14px]">close</span></button>';
+    }
+    function overdueActionsTextHtml() {
+        return '<button data-action="delay-continue" class="tp-card-meta text-on-surface-variant hover:text-primary hover:underline">' + T("today.delay_continue") + '</button>' +
+            '<button data-action="delay-reschedule" class="tp-card-meta text-on-surface-variant hover:text-primary hover:underline">' + T("today.delay_reschedule") + '</button>' +
+            '<button data-action="delay-tomorrow" class="tp-card-meta text-on-surface-variant hover:text-primary hover:underline">' + T("today.delay_tomorrow") + '</button>' +
+            '<button data-action="delay-abandon" class="tp-card-meta text-error hover:underline">' + T("today.delay_abandon") + '</button>';
+    }
     function energyBolts(energy) {
         var levels = { high: 3, mid: 2, low: 1 };
         var n = levels[energy] || 1;
@@ -189,13 +242,20 @@
         return m + ":" + String(sec).padStart(2, "0");
     }
 
+    // Applies to any date, not just today: a task on an earlier day that
+    // never got marked done/delayed/skipped is overdue regardless of what
+    // time it is now, since that whole day has already passed; a task on a
+    // future day never is, since it hasn't happened yet.
     function isOverdue(task) {
         if (task.isBuffer) return false;
         if (task.status === "done" || task.status === "delayed" || task.status === "skipped") return false;
-        if (task.date !== U.todayStr()) return false;
+        if (dismissedOverdue[task.id]) return false;
+        var today = U.todayStr();
+        if (task.date < today) return true;
+        if (task.date > today) return false;
         var endMin = U.timeToMinutes(task.startTime) + task.estimatedMinutes;
         var nowMin = new Date().getHours() * 60 + new Date().getMinutes();
-        return nowMin > endMin && !dismissedOverdue[task.id];
+        return nowMin > endMin;
     }
 
     function renderTaskCard(task) {
@@ -204,7 +264,7 @@
             var doneCount = task.subtasks.filter(function (s) { return s.done; }).length;
             var pct = Math.round((doneCount / task.subtasks.length) * 100);
             subtaskProgress = '<div class="pl-10 pr-sm w-full mt-sm">' +
-                '<div class="flex justify-between text-[10px] font-mono-sm text-on-surface-variant mb-1"><span>' + T("today.subtasks_progress", { done: doneCount, total: task.subtasks.length }) + '</span><span>' + pct + '%</span></div>' +
+                '<div class="flex justify-between tp-card-meta text-on-surface-variant mb-1"><span>' + T("today.subtasks_progress", { done: doneCount, total: task.subtasks.length }) + '</span><span>' + pct + '%</span></div>' +
                 '<div class="w-full bg-surface-container-highest rounded-full h-1.5"><div class="bg-primary h-1.5 rounded-full" style="width:' + pct + '%"></div></div></div>';
         }
 
@@ -225,31 +285,22 @@
                 '<span class="material-symbols-outlined text-[17px]">play_arrow</span>' + T("today.start") + '</button>';
         }
 
-        // Icon buttons, not text links: at narrow (mobile) widths the old
-        // "继续执行 / 重新安排 / 移到明天 / 放弃" text row wrapped onto a
-        // second line, growing past the card's fixed slot height — since the
-        // slot height is set from duration alone, the wrapped second line
-        // just got clipped by overflow:hidden, silently deleting "移到明天"
-        // and "放弃" on mobile. Icons stay on one line at any width.
+        // Full-tier cards are 60min+ (≥120px) — plenty of room, so this is
+        // always the text version.
         var overdueBlock = "";
         if (isOverdue(task)) {
-            overdueBlock = '<div class="mt-xs pt-xs border-t border-outline-variant flex items-center gap-xs">' +
-                '<span class="text-error font-bold text-[11px] shrink-0 mr-0.5">' + T("today.overdue") + '</span>' +
-                '<button data-action="delay-continue" title="' + T("today.delay_continue") + '" class="w-5 h-5 rounded hover:bg-surface-container flex items-center justify-center text-on-surface-variant shrink-0"><span class="material-symbols-outlined text-[14px]">check</span></button>' +
-                '<button data-action="delay-reschedule" title="' + T("today.delay_reschedule") + '" class="w-5 h-5 rounded hover:bg-surface-container flex items-center justify-center text-on-surface-variant shrink-0"><span class="material-symbols-outlined text-[14px]">edit</span></button>' +
-                '<button data-action="delay-tomorrow" title="' + T("today.delay_tomorrow") + '" class="w-5 h-5 rounded hover:bg-surface-container flex items-center justify-center text-on-surface-variant shrink-0"><span class="material-symbols-outlined text-[14px]">arrow_forward</span></button>' +
-                '<button data-action="delay-abandon" title="' + T("today.delay_abandon") + '" class="w-5 h-5 rounded hover:bg-error-container flex items-center justify-center text-error shrink-0"><span class="material-symbols-outlined text-[14px]">close</span></button>' +
+            overdueBlock = '<div class="mt-xs pt-xs border-t border-outline-variant flex items-center gap-sm flex-wrap">' +
+                '<span class="tp-card-meta text-error font-bold shrink-0">' + T("today.overdue") + '</span>' +
+                overdueActionsTextHtml() +
                 '</div>';
         }
 
-        var titleClasses = "font-label-md text-label-md text-on-surface" + (task.status === "done" ? " line-through" : "");
+        var titleClasses = "tp-card-title text-on-surface" + (task.status === "done" ? " line-through" : "");
         var cardOpacity = task.status === "done" ? " opacity-70" : task.status === "delayed" || task.status === "skipped" ? " opacity-50" : "";
         var conflicts = S.detectConflict(task.date, task.startTime, task.estimatedMinutes, task.templateId || task.id);
         var conflictClass = conflicts.length ? " conflict" : "";
-        var statusBadge = task.status === "delayed" ? '<span class="px-2 py-0.5 rounded bg-error-container text-on-error-container font-mono-sm text-[10px] uppercase tracking-wider font-bold">' + T("status.delayed") + '</span>'
-            : task.status === "skipped" ? '<span class="px-2 py-0.5 rounded bg-secondary-container text-on-secondary-container font-mono-sm text-[10px] uppercase tracking-wider font-bold">' + T("status.skipped") + '</span>' : "";
         var linked = GS.findLinkedNode(task.id);
-        var goalBadge = linked ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary-container text-on-primary-container font-mono-sm text-[10px]" title="' + U.escapeHtml(linked.goal.name + " · " + linked.node.title) + '">' +
+        var goalBadge = linked ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-primary-container text-on-primary-container tp-card-meta" title="' + U.escapeHtml(linked.goal.name + " · " + linked.node.title) + '">' +
             '<span class="material-symbols-outlined text-[12px]">flag</span>' + U.escapeHtml(linked.goal.name) + '</span>' : "";
 
         return '<div class="task-card ' + priorityClass(task.priority) + ' bg-surface-container-lowest border border-outline rounded p-sm h-full flex flex-col justify-center gap-xs overflow-hidden' + cardOpacity + conflictClass + '" data-task-id="' + task.id + '" draggable="true">' +
@@ -257,14 +308,14 @@
             '<div class="flex items-start gap-md pl-sm flex-1 cursor-pointer" data-action="open">' +
             ring +
             '<div>' +
-            '<div class="flex items-center gap-sm flex-wrap">' +
-            '<span class="px-2 py-0.5 rounded border ' + U.priorityBorderClass(task.priority) + ' ' + U.priorityTextClass(task.priority) + ' font-mono-sm text-[10px] uppercase tracking-wider font-bold">' + priorityLabel(task.priority) + '</span>' +
-            statusBadge +
+            '<div class="flex items-center gap-xs flex-wrap">' +
+            priorityTagHtml(task.priority) +
+            statusTagHtml(task.status) +
             '<h4 class="' + titleClasses + '">' + U.escapeHtml(task.title) + '</h4>' +
             '</div>' +
             (task.note ? '<p class="font-body-md text-body-md text-on-surface-variant mt-xs">' + U.escapeHtml(task.note) + '</p>' : "") +
             '<div class="flex items-center gap-md mt-xs flex-wrap">' +
-            '<p class="font-mono-sm text-mono-sm text-on-surface-variant">' + U.minutesLabel(task.estimatedMinutes) + '</p>' +
+            '<p class="tp-card-meta text-on-surface-variant">' + U.minutesLabel(task.estimatedMinutes) + '</p>' +
             '<div class="flex items-center gap-1" title="' + T("today.brain_power") + '">' + energyBolts(task.energy) + '</div>' +
             goalBadge +
             '</div>' +
@@ -279,7 +330,7 @@
 
     function renderBufferCard(task) {
         return '<div class="h-full rounded border border-dashed border-outline-variant buffer-slot bg-surface flex items-center px-sm" data-task-id="' + task.id + '" data-action="open">' +
-            '<span class="font-mono-sm text-[10px] text-on-surface-variant uppercase tracking-wider font-bold truncate">' + T("today.buffer_with_duration", { duration: U.minutesLabel(task.estimatedMinutes) }) + '</span></div>';
+            '<span class="tp-card-meta text-on-surface-variant uppercase tracking-wider font-bold truncate">' + T("today.buffer_with_duration", { duration: U.minutesLabel(task.estimatedMinutes) }) + '</span></div>';
     }
 
     // A single-line fallback for slots too short to fit the full card (badges,
@@ -288,8 +339,8 @@
     function renderTaskCardCompact(task) {
         var overdue = isOverdue(task);
         return '<div class="task-card ' + priorityClass(task.priority) + ' bg-surface-container-lowest border rounded h-full flex items-center gap-xs px-xs cursor-pointer overflow-hidden' + (task.status === "done" ? " opacity-70" : "") + (overdue ? " border-error" : " border-outline") + '" data-task-id="' + task.id + '" data-action="open" draggable="true">' +
-            (overdue ? '<span class="material-symbols-outlined text-[11px] text-error shrink-0">warning</span>' : '<span class="font-mono-sm text-[9px] text-on-surface-variant shrink-0">' + task.startTime + '</span>') +
-            '<span class="font-label-md text-[11px] text-on-surface truncate' + (task.status === "done" ? " line-through" : "") + '">' + U.escapeHtml(task.title) + '</span>' +
+            (overdue ? '<span class="material-symbols-outlined text-[11px] text-error shrink-0">warning</span>' : '<span class="tp-card-meta text-on-surface-variant shrink-0">' + task.startTime + '</span>') +
+            '<span class="tp-card-title text-on-surface truncate' + (task.status === "done" ? " line-through" : "") + '">' + U.escapeHtml(task.title) + '</span>' +
             '</div>';
     }
 
@@ -310,13 +361,15 @@
             ? '<button type="button" data-action="toggle-complete" title="' + T("tasks.mark_incomplete") + '" class="text-primary shrink-0 flex items-center"><span class="material-symbols-outlined text-[15px]" style="font-variation-settings: \'FILL\' 1;">check_circle</span></button>'
             : '<button type="button" data-action="toggle-complete" title="' + T("tasks.mark_complete") + '" class="w-3.5 h-3.5 rounded-full border-2 border-outline-variant shrink-0 hover:border-primary transition-colors"></button>';
 
+        // 20px tap targets, not the previous 16px — those read as too small
+        // to comfortably hit, especially on a touch screen.
         var timerIcons = "";
         if (task.runningSince) {
-            timerIcons = '<span class="font-mono-sm text-[9px] text-primary font-bold js-elapsed shrink-0">' + elapsedLabel(task) + '</span>' +
-                '<button data-action="pause" title="' + T("today.start") + '" class="w-4 h-4 rounded bg-primary text-on-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[11px]" style="font-variation-settings: \'FILL\' 1;">pause</span></button>' +
-                '<button data-action="complete" title="' + T("tasks.mark_complete") + '" class="w-4 h-4 rounded border border-outline text-on-surface flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[11px]">stop</span></button>';
+            timerIcons = '<span class="tp-card-meta text-primary font-bold js-elapsed shrink-0">' + elapsedLabel(task) + '</span>' +
+                '<button data-action="pause" title="' + T("today.start") + '" class="w-5 h-5 rounded bg-primary text-on-primary flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[13px]" style="font-variation-settings: \'FILL\' 1;">pause</span></button>' +
+                '<button data-action="complete" title="' + T("tasks.mark_complete") + '" class="w-5 h-5 rounded border border-outline text-on-surface flex items-center justify-center shrink-0"><span class="material-symbols-outlined text-[13px]">stop</span></button>';
         } else if (!isDone) {
-            timerIcons = '<button data-action="start" title="' + T("today.start") + '" class="w-4 h-4 rounded border border-outline text-on-surface flex items-center justify-center shrink-0 hover:bg-surface-container"><span class="material-symbols-outlined text-[11px]">play_arrow</span></button>';
+            timerIcons = '<button data-action="start" title="' + T("today.start") + '" class="w-5 h-5 rounded border border-outline text-on-surface flex items-center justify-center shrink-0 hover:bg-surface-container"><span class="material-symbols-outlined text-[13px]">play_arrow</span></button>';
         }
 
         var metaBits = [U.minutesLabel(task.estimatedMinutes)];
@@ -325,28 +378,34 @@
             metaBits.push(doneCount + "/" + task.subtasks.length);
         }
 
-        var overdueRow = "";
-        if (overdue) {
-            overdueRow = '<div class="flex items-center gap-0.5">' +
-                '<span class="text-error text-[9px] font-bold shrink-0 mr-0.5">' + T("today.overdue") + '</span>' +
-                '<button data-action="delay-continue" title="' + T("today.delay_continue") + '" class="w-4 h-4 rounded hover:bg-surface-container flex items-center justify-center text-on-surface-variant"><span class="material-symbols-outlined text-[11px]">check</span></button>' +
-                '<button data-action="delay-reschedule" title="' + T("today.delay_reschedule") + '" class="w-4 h-4 rounded hover:bg-surface-container flex items-center justify-center text-on-surface-variant"><span class="material-symbols-outlined text-[11px]">edit</span></button>' +
-                '<button data-action="delay-tomorrow" title="' + T("today.delay_tomorrow") + '" class="w-4 h-4 rounded hover:bg-surface-container flex items-center justify-center text-on-surface-variant"><span class="material-symbols-outlined text-[11px]">arrow_forward</span></button>' +
-                '<button data-action="delay-abandon" title="' + T("today.delay_abandon") + '" class="w-4 h-4 rounded hover:bg-error-container flex items-center justify-center text-error"><span class="material-symbols-outlined text-[11px]">close</span></button>' +
-                '</div>';
-        }
-
+        // Everything lives on one line — ring, title, tags, duration, timer —
+        // instead of the title getting its own row above a second row of
+        // tag/meta/timer. The title is the only flexible piece (flex-1 +
+        // min-w-0, so it's the one that truncates); the tags/duration/timer
+        // are small enough to stay fixed-width parked at the end. A second
+        // row only appears at all when the task is actually overdue.
         return '<div class="task-card ' + priorityClass(task.priority) + ' bg-surface-container-lowest border border-outline rounded h-full flex flex-col justify-center gap-0.5 px-xs py-0.5 overflow-hidden' + cardOpacity + conflictClass + '" data-task-id="' + task.id + '" draggable="true">' +
             '<div class="flex items-center gap-xs cursor-pointer" data-action="open">' +
             ring +
-            '<h4 class="font-label-md text-[11px] text-on-surface truncate flex-1' + (isDone ? " line-through" : "") + '">' + U.escapeHtml(task.title) + '</h4>' +
+            '<h4 class="tp-card-title text-on-surface truncate flex-1 min-w-0' + (isDone ? " line-through" : "") + '">' + U.escapeHtml(task.title) + '</h4>' +
             (linked ? '<span class="material-symbols-outlined text-[12px] text-primary shrink-0" title="' + U.escapeHtml(linked.goal.name) + '">flag</span>' : "") +
+            priorityTagHtml(task.priority) +
+            statusTagHtml(task.status) +
+            '<span class="tp-card-meta text-on-surface-variant shrink-0">' + metaBits.join(" · ") + '</span>' +
+            '<span class="flex items-center gap-0.5 shrink-0">' + timerIcons + '</span>' +
             '</div>' +
-            '<div class="flex items-center gap-xs pl-[18px]">' +
-            '<span class="font-mono-sm text-[9px] text-on-surface-variant truncate">' + metaBits.join(" · ") + '</span>' +
-            '<span class="flex items-center gap-0.5 ml-auto shrink-0">' + timerIcons + '</span>' +
-            '</div>' +
-            (overdueRow ? '<div class="pl-[18px]">' + overdueRow + '</div>' : '') +
+            // Only the ~15min-and-under end of this tier is tight enough that
+            // text labels would wrap — everything roomier than that (up
+            // through the rest of medium and all of full-tier) uses text.
+            (overdue ? (task.estimatedMinutes <= OVERDUE_ICONS_MAX_MINUTES
+                ? '<div class="flex items-center gap-xs pl-[18px]">' +
+                    '<span class="tp-card-meta text-error font-bold shrink-0 mr-0.5">' + T("today.overdue") + '</span>' +
+                    overdueActionsIconsHtml() +
+                    '</div>'
+                : '<div class="flex items-center gap-sm flex-wrap pl-[18px]">' +
+                    '<span class="tp-card-meta text-error font-bold shrink-0">' + T("today.overdue") + '</span>' +
+                    overdueActionsTextHtml() +
+                    '</div>') : '') +
             '</div>';
     }
 
@@ -357,8 +416,17 @@
     var PX_PER_MIN = 2;
     var DAY_MINUTES = 24 * 60;
     var GUTTER_PX = 52;
-    var COMPACT_THRESHOLD_PX = 28;
-    var MEDIUM_THRESHOLD_PX = 100;
+    // Below this, the medium tier's overdue row uses icons instead of text —
+    // see renderTaskCardMedium.
+    var OVERDUE_ICONS_MAX_MINUTES = 15;
+    // A slot has to be tall enough to fit the (comfortably-sized, non-
+    // shrinking) card type before it's promoted to a denser layout — a short
+    // slot instead drops to a leaner tier that shows less content at the
+    // same readable size. Medium's whole non-overdue row now fits in ~26px
+    // since title/tags/duration all share one line, so the compact cutover
+    // (bare icon-or-time + title, no tags at all) only kicks in below that.
+    var COMPACT_THRESHOLD_PX = 26;
+    var MEDIUM_THRESHOLD_PX = 120;
     var lastAutoScrolledDate = null;
 
     // Groups tasks into overlap clusters and assigns each a column within its

@@ -277,7 +277,35 @@
         "auth.signing_in": { zh: "登录中…", en: "Signing in…" },
         "auth.signing_up": { zh: "注册中…", en: "Creating account…" },
 
-        "migration.confirm_message": { zh: "检测到这是你在本设备上第一次登录，云端账户目前还没有数据。是否把本机现有的任务、SOP 和目标上传到云端？本机数据不会被删除。", en: "First time signing in on this device, and your cloud account is empty. Upload this device's existing tasks, SOPs, and goals to the cloud? Nothing on this device will be deleted." }
+        "migration.confirm_message": { zh: "检测到这是你在本设备上第一次登录，云端账户目前还没有数据。是否把本机现有的任务、SOP 和目标上传到云端？本机数据不会被删除。", en: "First time signing in on this device, and your cloud account is empty. Upload this device's existing tasks, SOPs, and goals to the cloud? Nothing on this device will be deleted." },
+
+        "review.export_section_title": { zh: "导出数据", en: "Export Data" },
+        "review.export_csv": { zh: "导出 CSV", en: "Export CSV" },
+        "review.export_json": { zh: "导出 JSON 备份", en: "Export JSON Backup" },
+        "export.col_title": { zh: "标题", en: "Title" },
+        "export.col_date": { zh: "日期", en: "Date" },
+        "export.col_start_time": { zh: "开始时间", en: "Start Time" },
+        "export.col_planned_min": { zh: "计划用时(分钟)", en: "Planned (min)" },
+        "export.col_actual_min": { zh: "实际用时(分钟)", en: "Actual (min)" },
+        "export.col_priority": { zh: "优先级", en: "Priority" },
+        "export.col_category": { zh: "分类", en: "Category" },
+        "export.col_status": { zh: "状态", en: "Status" },
+        "export.col_sop": { zh: "关联SOP", en: "SOP" },
+        "export.col_energy": { zh: "脑力消耗", en: "Energy" },
+        "export.col_subtasks": { zh: "子任务完成", en: "Subtasks" },
+        "export.col_buffer": { zh: "缓冲时段", en: "Buffer" },
+        "export.col_note": { zh: "备注", en: "Note" },
+        "export.col_name": { zh: "名称", en: "Name" },
+        "export.col_duration_min": { zh: "默认时长(分钟)", en: "Duration (min)" },
+        "export.col_steps_count": { zh: "步骤数", en: "Steps" },
+        "export.col_min_standard": { zh: "最低标准", en: "Min Standard" },
+        "export.col_full_standard": { zh: "完整标准", en: "Full Standard" },
+        "export.col_start_date": { zh: "开始日期", en: "Start Date" },
+        "export.col_end_date": { zh: "结束日期", en: "End Date" },
+        "export.col_time_progress": { zh: "时间进度", en: "Time Progress" },
+        "export.col_goal_progress": { zh: "完成进度", en: "Goal Progress" },
+        "export.col_nodes_done": { zh: "节点完成", en: "Nodes Done" },
+        "export.yes": { zh: "是", en: "Yes" }
     };
 
     function getLang() {
