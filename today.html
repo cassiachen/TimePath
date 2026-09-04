@@ -91,7 +91,7 @@
 <h2 class="text-headline-sm font-headline-sm font-bold text-primary md:hidden">时程｜TimePath</h2>
 </div>
 <!-- Time Budget Indicator -->
-<div class="hidden lg:flex items-center gap-md bg-surface-container-low border border-outline-variant rounded px-sm py-xs text-xs font-mono-sm">
+<div id="budget-indicator" class="hidden lg:flex items-center gap-md bg-surface-container-low border border-outline-variant rounded px-sm py-xs text-xs font-mono-sm">
 <div class="flex items-center gap-xs"><span data-i18n="today.budget_disposable" class="text-on-surface-variant"></span> <span id="budget-disposable" class="font-bold text-primary">--</span></div>
 <div class="w-px h-3 bg-outline-variant"></div>
 <div class="flex items-center gap-xs"><span data-i18n="today.budget_planned" class="text-on-surface-variant"></span> <span id="budget-planned" class="font-bold text-primary">--</span></div>
@@ -171,6 +171,7 @@
 <script src="shared/timepath-auth.js"></script>
 <script src="shared/timepath-sync.js"></script>
 <script src="shared/timepath-migration.js"></script>
+<script src="shared/timepath-onboarding.js"></script>
 <script src="shared/timepath-nav.js"></script>
 <script src="shared/timepath-app.js"></script>
 <script src="shared/timepath-modal.js"></script>
@@ -728,9 +729,31 @@
     });
 
     renderAll();
-    if (!S.state.budgetConfigured) {
-        window.TimePathSettingsForm.open({ isFirstRun: true, onSaved: renderAll });
+
+    function maybeOpenFirstRunBudget() {
+        if (!S.state.budgetConfigured) {
+            window.TimePathSettingsForm.open({ isFirstRun: true, onSaved: renderAll });
+        }
     }
+    // On a brand-new device, the tour runs first (so a first-time user gets
+    // oriented before being asked to configure anything); the budget setup
+    // modal — which would otherwise visually collide with the tour, both
+    // being first-run modals — waits for it to finish or be skipped. Once
+    // the tour has already been seen, there's nothing to wait for.
+    if (window.TimePathOnboarding && !window.TimePathOnboarding.maybeStart([
+        { target: null, titleKey: "onboarding.welcome_title", bodyKey: "onboarding.welcome_body" },
+        { target: "#quick-add-btn", titleKey: "onboarding.quickadd_title", bodyKey: "onboarding.quickadd_body" },
+        { target: "#timeline-container", titleKey: "onboarding.timeline_title", bodyKey: "onboarding.timeline_body" },
+        { target: "#budget-indicator", titleKey: "onboarding.budget_title", bodyKey: "onboarding.budget_body" },
+        { target: 'nav a[href="goals.html"]', titleKey: "onboarding.goals_title", bodyKey: "onboarding.goals_body" },
+        { target: 'nav a[href="sop.html"]', titleKey: "onboarding.sop_title", bodyKey: "onboarding.sop_body" },
+        { target: 'nav a[href="review.html"]', titleKey: "onboarding.review_title", bodyKey: "onboarding.review_body" },
+        { target: "#settings-btn", titleKey: "onboarding.settings_title", bodyKey: "onboarding.settings_body" },
+        { target: "#nav-user-block", titleKey: "onboarding.account_title", bodyKey: "onboarding.account_body" }
+    ], { onComplete: maybeOpenFirstRunBudget })) {
+        maybeOpenFirstRunBudget();
+    }
+
     // Cloud data can arrive after this page already rendered from LocalStorage
     // (login pull, or first-login migration) — re-render once it lands.
     window.addEventListener("timepath:hydrated", function () { initCalMonth(); renderAll(); });

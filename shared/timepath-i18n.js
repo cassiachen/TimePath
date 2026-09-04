@@ -305,7 +305,29 @@
         "export.col_time_progress": { zh: "时间进度", en: "Time Progress" },
         "export.col_goal_progress": { zh: "完成进度", en: "Goal Progress" },
         "export.col_nodes_done": { zh: "节点完成", en: "Nodes Done" },
-        "export.yes": { zh: "是", en: "Yes" }
+        "export.yes": { zh: "是", en: "Yes" },
+
+        "onboarding.prev": { zh: "上一步", en: "Back" },
+        "onboarding.next": { zh: "下一步", en: "Next" },
+        "onboarding.finish": { zh: "开始使用", en: "Get Started" },
+        "onboarding.welcome_title": { zh: "欢迎使用 时程｜TimePath", en: "Welcome to TimePath" },
+        "onboarding.welcome_body": { zh: "花 30 秒认识一下几个核心功能，之后随时可以直接开始用。", en: "A 30-second tour of the core features — feel free to skip and dive in anytime." },
+        "onboarding.quickadd_title": { zh: "快速添加任务", en: "Quick Add Task" },
+        "onboarding.quickadd_body": { zh: "点这里新建一个任务；也可以直接点时间轴上的空白处，会自动带入那个时间点。", en: "Create a task here — or just click an empty spot on the timeline to start it at that time." },
+        "onboarding.timeline_title": { zh: "今日时间轴", en: "Today's Timeline" },
+        "onboarding.timeline_body": { zh: "每个任务方块的高度，跟它的真实时长成正比——空白处就是你真正的空闲时间。", en: "Each task block's height is proportional to its real duration — the empty space between them is your actual free time." },
+        "onboarding.budget_title": { zh: "时间预算", en: "Time Budget" },
+        "onboarding.budget_body": { zh: "睡眠、工作等固定时间之外，这里显示你今天还剩多少可支配时间。", en: "After sleep, work, and other fixed activities, this shows how much disposable time you have left today." },
+        "onboarding.goals_title": { zh: "长期目标", en: "Long-Term Goals" },
+        "onboarding.goals_body": { zh: "把一个大目标拆解成月度里程碑和每周计划，再关联到具体任务。", en: "Break a big goal down into monthly milestones and weekly plans, then link them to actual tasks." },
+        "onboarding.sop_title": { zh: "SOP 流程", en: "SOP" },
+        "onboarding.sop_body": { zh: "把重复性工作整理成标准流程，下次直接照着步骤执行、打勾完成。", en: "Turn a repeatable routine into a standard checklist you can follow and check off next time." },
+        "onboarding.review_title": { zh: "复盘统计", en: "Review" },
+        "onboarding.review_body": { zh: "查看完成率、计划与实际用时对比、延期原因这些统计数据。", en: "See your completion rate, planned-vs-actual time, and why things got delayed." },
+        "onboarding.settings_title": { zh: "设置", en: "Settings" },
+        "onboarding.settings_body": { zh: "在这里调整每天固定花在睡眠、工作、吃饭等事情上的时间。", en: "Adjust how many hours you reserve each day for sleep, work, meals, and other fixed activities." },
+        "onboarding.account_title": { zh: "账号与云同步", en: "Account & Cloud Sync" },
+        "onboarding.account_body": { zh: "登录后数据会自动同步到云端，换设备也能接着用；不登录也完全不影响本机使用。", en: "Sign in to sync your data to the cloud and pick up on another device — everything still works locally even if you don't." }
     };
 
     function getLang() {

@@ -61,14 +61,27 @@
             var cloudHasData = await window.TimePathSync.cloudHasAnyData();
             if (cloudHasData === null) return; // offline/unconfigured/unknown — try again next page load
 
-            if (!cloudHasData && localHasData()) {
-                offerMigration(user.id);
-            } else {
+            if (cloudHasData) {
+                // Returning account, new device — its real data lives in the
+                // cloud, pull it down.
                 var pulled = await window.TimePathSync.pullAll();
                 if (pulled) {
                     try { localStorage.setItem(everKey(user.id), "done"); } catch (e) {}
                     try { sessionStorage.setItem(SESSION_KEY, user.id); } catch (e) {}
                 }
+            } else if (localHasData()) {
+                // Cloud empty, but this device has real user-created data —
+                // offer to upload it rather than silently discarding it.
+                offerMigration(user.id);
+            } else {
+                // Cloud empty AND this device only has untouched seed/demo
+                // content (or nothing) — there is nothing to sync in either
+                // direction yet. Do NOT call pullAll() here: pulling an
+                // empty cloud would wipe the local demo data via
+                // hydrateFromCloud([], []). Just mark this resolved; future
+                // edits push to cloud normally through the sync queue.
+                try { localStorage.setItem(everKey(user.id), "done"); } catch (e) {}
+                try { sessionStorage.setItem(SESSION_KEY, user.id); } catch (e) {}
             }
             return;
         }
@@ -76,8 +89,16 @@
         var alreadyThisSession = false;
         try { alreadyThisSession = sessionStorage.getItem(SESSION_KEY) === user.id; } catch (e) {}
         if (!alreadyThisSession) {
-            var refreshed = await window.TimePathSync.pullAll();
-            if (refreshed) { try { sessionStorage.setItem(SESSION_KEY, user.id); } catch (e) {} }
+            // Same protection on the per-session refresh: only pull if the
+            // cloud actually has something, so it can never overwrite real
+            // local content with nothing.
+            var cloudHasDataNow = await window.TimePathSync.cloudHasAnyData();
+            if (cloudHasDataNow) {
+                var refreshed = await window.TimePathSync.pullAll();
+                if (refreshed) { try { sessionStorage.setItem(SESSION_KEY, user.id); } catch (e) {} }
+            } else if (cloudHasDataNow === false) {
+                try { sessionStorage.setItem(SESSION_KEY, user.id); } catch (e) {}
+            }
         }
     }
 
