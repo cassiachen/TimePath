@@ -9,6 +9,20 @@
 // `ready` or `onChange`, not assume `getUser()` is populated immediately
 // after page load.
 (function () {
+    // A Supabase password-reset (or magic-link) redirect lands wherever the
+    // project's Site URL / Redirect URLs config points — not necessarily
+    // login.html specifically, if that exact page was never whitelisted.
+    // login.html is the only page with a "set new password" UI, so a
+    // recovery link landing anywhere else gets funneled there immediately,
+    // before this page does anything else with the token (render, decide on
+    // the onboarding tour, etc.) or the Supabase client quietly consumes it
+    // as if it were just a normal sign-in.
+    var isRecoveryLink = /type=recovery/.test(window.location.hash) || /type=recovery/.test(window.location.search);
+    if (isRecoveryLink && !/\/login\.html$/.test(window.location.pathname)) {
+        window.location.replace("login.html" + window.location.hash + window.location.search);
+        return;
+    }
+
     var user = null; // { id, email } | null
     var listeners = [];
     var recoveryListeners = [];
