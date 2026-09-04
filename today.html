@@ -287,7 +287,9 @@
         }
 
         // Full-tier cards are 60min+ (≥120px) — plenty of room, so this is
-        // always the text version.
+        // always the text version. The divider line is deliberate — see
+        // renderTaskCardMedium's matching overdue row for why every tier
+        // uses the same border-t treatment instead of only some of them.
         var overdueBlock = "";
         if (isOverdue(task)) {
             overdueBlock = '<div class="mt-xs pt-xs border-t border-outline-variant flex items-center gap-sm flex-wrap">' +
@@ -379,31 +381,37 @@
             metaBits.push(doneCount + "/" + task.subtasks.length);
         }
 
-        // Everything lives on one line — ring, title, tags, duration, timer —
+        // Everything lives on one line — ring, tags, title, duration, timer —
         // instead of the title getting its own row above a second row of
-        // tag/meta/timer. The title is the only flexible piece (flex-1 +
-        // min-w-0, so it's the one that truncates); the tags/duration/timer
-        // are small enough to stay fixed-width parked at the end. A second
-        // row only appears at all when the task is actually overdue.
+        // tag/meta/timer. Tags sit right after the ring, same position as
+        // the full-tier card (see renderTaskCard above), not after the
+        // title — a card's tags shouldn't jump position depending on which
+        // density tier happened to render it. Title is the one flexible
+        // piece (flex-1 + min-w-0, so it's the one that truncates) parked
+        // between the tags and the fixed-width duration/timer. A second row
+        // only appears at all when the task is actually overdue.
         return '<div class="task-card ' + priorityClass(task.priority) + ' bg-surface-container-lowest border border-outline rounded h-full flex flex-col justify-center gap-0.5 px-xs py-0.5 overflow-hidden' + cardOpacity + conflictClass + '" data-task-id="' + task.id + '" draggable="true">' +
             '<div class="flex items-center gap-xs cursor-pointer" data-action="open">' +
             ring +
-            '<h4 class="tp-card-title text-on-surface truncate flex-1 min-w-0' + (isDone ? " line-through" : "") + '">' + U.escapeHtml(task.title) + '</h4>' +
-            (linked ? '<span class="material-symbols-outlined text-[12px] text-primary shrink-0" title="' + U.escapeHtml(linked.goal.name) + '">flag</span>' : "") +
             priorityTagHtml(task.priority) +
             statusTagHtml(task.status) +
+            '<h4 class="tp-card-title text-on-surface truncate flex-1 min-w-0' + (isDone ? " line-through" : "") + '">' + U.escapeHtml(task.title) + '</h4>' +
+            (linked ? '<span class="material-symbols-outlined text-[12px] text-primary shrink-0" title="' + U.escapeHtml(linked.goal.name) + '">flag</span>' : "") +
             '<span class="tp-card-meta text-on-surface-variant shrink-0">' + metaBits.join(" · ") + '</span>' +
             '<span class="flex items-center gap-0.5 shrink-0">' + timerIcons + '</span>' +
             '</div>' +
             // Only the ~15min-and-under end of this tier is tight enough that
             // text labels would wrap — everything roomier than that (up
             // through the rest of medium and all of full-tier) uses text.
+            // Same border-t divider as the full-tier card's overdue row —
+            // every density tier gets the same treatment here, not just some
+            // of them.
             (overdue ? (task.estimatedMinutes <= OVERDUE_ICONS_MAX_MINUTES
-                ? '<div class="flex items-center gap-xs pl-[18px]">' +
+                ? '<div class="mt-0.5 pt-0.5 border-t border-outline-variant flex items-center gap-xs pl-[18px]">' +
                     '<span class="tp-card-meta text-error font-bold shrink-0 mr-0.5">' + T("today.overdue") + '</span>' +
                     overdueActionsIconsHtml() +
                     '</div>'
-                : '<div class="flex items-center gap-sm flex-wrap pl-[18px]">' +
+                : '<div class="mt-0.5 pt-0.5 border-t border-outline-variant flex items-center gap-sm flex-wrap pl-[18px]">' +
                     '<span class="tp-card-meta text-error font-bold shrink-0">' + T("today.overdue") + '</span>' +
                     overdueActionsTextHtml() +
                     '</div>') : '') +
