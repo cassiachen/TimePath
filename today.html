@@ -282,21 +282,15 @@
     var CARD_META_MIN_PX = 68;     // + duration/energy/goal-badge row
     var CARD_OVERDUE_MIN_PX = 80;  // + overdue action row (its own line — needs meta's row already showing plus its own ~20px, measured empirically so it never gets clipped)
     var CARD_NOTE_MIN_PX = 100;    // + note text
-    var CARD_SUBTASK_MIN_PX = 136; // + subtask progress bar — high enough that even the worst case (overdue + note + subtask all present together) still fits, measured empirically
     function renderTaskCard(task, slotHeight) {
         slotHeight = slotHeight || Infinity;
         var isDone = task.status === "done";
         var overdue = isOverdue(task);
 
-        var subtaskProgress = "";
-        if (slotHeight >= CARD_SUBTASK_MIN_PX && task.subtasks && task.subtasks.length) {
-            var doneCount = task.subtasks.filter(function (s) { return s.done; }).length;
-            var pct = Math.round((doneCount / task.subtasks.length) * 100);
-            subtaskProgress = '<div class="pl-10 pr-sm w-full mt-sm">' +
-                '<div class="flex justify-between tp-card-meta text-on-surface-variant mb-1"><span>' + T("today.subtasks_progress", { done: doneCount, total: task.subtasks.length }) + '</span><span>' + pct + '%</span></div>' +
-                '<div class="w-full bg-surface-container-highest rounded-full h-1.5"><div class="bg-primary h-1.5 rounded-full" style="width:' + pct + '%"></div></div></div>';
-        }
-
+        // Subtask progress deliberately does NOT render on the timeline —
+        // it's still fully visible/editable by opening the task (edit form,
+        // or the Tasks page list), the schedule itself just stays about
+        // when things happen, not their internal checklists.
         var ring = isDone
             ? '<button type="button" data-action="toggle-complete" title="' + T("tasks.mark_incomplete") + '" class="text-primary hover:opacity-70"><span class="material-symbols-outlined" style="font-variation-settings: \'FILL\' 1;">check_circle</span></button>'
             : '<button type="button" data-action="toggle-complete" title="' + T("tasks.mark_complete") + '" class="w-5 h-5 rounded-full border-2 border-outline-variant mt-1 shrink-0 hover:border-primary transition-colors"></button>';
@@ -370,7 +364,6 @@
             '</div>' +
             timerBlock +
             '</div>' +
-            subtaskProgress +
             overdueBlock +
             '</div>';
     }
