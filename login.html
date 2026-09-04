@@ -33,10 +33,13 @@
 
 <div class="w-full max-w-sm bg-surface-container-lowest border border-outline-variant rounded-xl shadow-lg p-lg">
 
-<div class="flex border-b border-outline-variant mb-lg">
+<div id="auth-tabs" class="flex border-b border-outline-variant mb-lg">
 <button id="tab-login" type="button" data-i18n="auth.login_title" class="flex-1 pb-sm font-headline-sm text-headline-sm font-bold text-primary border-b-2 border-primary"></button>
 <button id="tab-register" type="button" data-i18n="auth.register_title" class="flex-1 pb-sm font-headline-sm text-headline-sm font-bold text-on-surface-variant border-b-2 border-transparent"></button>
 </div>
+
+<h3 id="forgot-title" data-i18n="auth.forgot_title" class="hidden font-headline-sm text-headline-sm font-bold text-primary mb-lg"></h3>
+<h3 id="reset-title" data-i18n="auth.reset_title" class="hidden font-headline-sm text-headline-sm font-bold text-primary mb-lg"></h3>
 
 <div id="auth-error" class="hidden mb-md p-sm rounded border border-error bg-error-container text-on-error-container text-body-md"></div>
 <div id="auth-notice" class="hidden mb-md p-sm rounded border border-primary bg-primary-container text-on-primary-container text-body-md"></div>
@@ -47,14 +50,40 @@
 <input id="auth-email" type="email" autocomplete="email" required class="w-full bg-surface border border-outline-variant rounded px-3 py-2 text-body-md focus:ring-2 focus:ring-primary focus:border-primary"/>
 </div>
 <div>
-<label data-i18n="auth.password_label" class="block font-label-md text-label-md text-on-surface-variant mb-1"></label>
+<div class="flex items-center justify-between mb-1">
+<label data-i18n="auth.password_label" class="block font-label-md text-label-md text-on-surface-variant"></label>
+<button id="forgot-password-link" type="button" data-i18n="auth.forgot_password_link" class="font-mono-sm text-mono-sm text-on-surface-variant hover:text-primary"></button>
+</div>
 <input id="auth-password" type="password" autocomplete="current-password" minlength="6" required class="w-full bg-surface border border-outline-variant rounded px-3 py-2 text-body-md focus:ring-2 focus:ring-primary focus:border-primary"/>
 <p id="password-hint" data-i18n="auth.password_hint" class="hidden font-mono-sm text-mono-sm text-on-surface-variant mt-1"></p>
 </div>
 <button id="auth-submit" type="submit" data-i18n="auth.submit_login" class="mt-sm bg-primary text-on-primary w-full py-sm px-md rounded font-label-md text-label-md hover:bg-primary-container transition-colors active:scale-95"></button>
 </form>
 
+<form id="forgot-form" class="hidden flex-col gap-md">
+<p data-i18n="auth.forgot_body" class="font-body-md text-body-md text-on-surface-variant"></p>
+<div>
+<label data-i18n="auth.email_label" class="block font-label-md text-label-md text-on-surface-variant mb-1"></label>
+<input id="forgot-email" type="email" autocomplete="email" required class="w-full bg-surface border border-outline-variant rounded px-3 py-2 text-body-md focus:ring-2 focus:ring-primary focus:border-primary"/>
+</div>
+<button id="forgot-submit" type="submit" data-i18n="auth.send_reset_email" class="mt-sm bg-primary text-on-primary w-full py-sm px-md rounded font-label-md text-label-md hover:bg-primary-container transition-colors active:scale-95"></button>
+</form>
+
+<form id="reset-form" class="hidden flex-col gap-md">
+<p data-i18n="auth.reset_body" class="font-body-md text-body-md text-on-surface-variant"></p>
+<div>
+<label data-i18n="auth.new_password_label" class="block font-label-md text-label-md text-on-surface-variant mb-1"></label>
+<input id="reset-password" type="password" autocomplete="new-password" minlength="6" required class="w-full bg-surface border border-outline-variant rounded px-3 py-2 text-body-md focus:ring-2 focus:ring-primary focus:border-primary"/>
+</div>
+<div>
+<label data-i18n="auth.confirm_password_label" class="block font-label-md text-label-md text-on-surface-variant mb-1"></label>
+<input id="reset-password-confirm" type="password" autocomplete="new-password" minlength="6" required class="w-full bg-surface border border-outline-variant rounded px-3 py-2 text-body-md focus:ring-2 focus:ring-primary focus:border-primary"/>
+</div>
+<button id="reset-submit" type="submit" data-i18n="auth.save_new_password" class="mt-sm bg-primary text-on-primary w-full py-sm px-md rounded font-label-md text-label-md hover:bg-primary-container transition-colors active:scale-95"></button>
+</form>
+
 <button id="auth-toggle" type="button" data-i18n="auth.toggle_to_register" class="w-full text-center mt-md font-body-md text-body-md text-primary hover:underline"></button>
+<button id="back-to-login" type="button" data-i18n="auth.back_to_login" class="hidden w-full text-center mt-md font-body-md text-body-md text-primary hover:underline"></button>
 
 <div class="mt-lg pt-md border-t border-outline-variant text-center">
 <a href="today.html" data-i18n="auth.continue_local" class="font-mono-sm text-mono-sm text-on-surface-variant hover:text-primary"></a>
@@ -77,35 +106,75 @@
     if (langSwitcher) window.TimePathI18n.renderSwitcher(langSwitcher);
     document.title = "时程｜TimePath · " + T("auth.login_title");
 
-    var mode = "login"; // "login" | "register"
+    // A Supabase reset-password link lands here with a recovery marker in
+    // the URL (hash for the implicit flow, query for PKCE) — checked
+    // synchronously up front so the "already signed in? skip to the app"
+    // redirect near the bottom never fires during a recovery flow, racing
+    // the PASSWORD_RECOVERY event from timepath-auth.js.
+    var isRecoveryLink = /type=recovery/.test(window.location.hash) || /type=recovery/.test(window.location.search);
 
+    var mode = "login"; // "login" | "register" | "forgot" | "reset"
+
+    var authTabs = document.getElementById("auth-tabs");
+    var forgotTitle = document.getElementById("forgot-title");
+    var resetTitle = document.getElementById("reset-title");
     var tabLogin = document.getElementById("tab-login");
     var tabRegister = document.getElementById("tab-register");
     var submitBtn = document.getElementById("auth-submit");
     var toggleBtn = document.getElementById("auth-toggle");
+    var backToLoginBtn = document.getElementById("back-to-login");
+    var forgotPasswordLink = document.getElementById("forgot-password-link");
     var passwordHint = document.getElementById("password-hint");
     var errorBox = document.getElementById("auth-error");
     var noticeBox = document.getElementById("auth-notice");
     var form = document.getElementById("auth-form");
     var emailInput = document.getElementById("auth-email");
     var passwordInput = document.getElementById("auth-password");
+    var forgotForm = document.getElementById("forgot-form");
+    var forgotEmailInput = document.getElementById("forgot-email");
+    var forgotSubmitBtn = document.getElementById("forgot-submit");
+    var resetForm = document.getElementById("reset-form");
+    var resetPasswordInput = document.getElementById("reset-password");
+    var resetPasswordConfirmInput = document.getElementById("reset-password-confirm");
+    var resetSubmitBtn = document.getElementById("reset-submit");
+
+    // Tailwind's "hidden" (display:none) and "flex" (display:flex) are both
+    // single-class utilities of equal specificity — leaving both classes on
+    // an element at once makes which one wins a coin flip. show()/hide()
+    // keep them mutually exclusive instead of just toggling "hidden".
+    function show(el) { el.classList.remove("hidden"); el.classList.add("flex"); }
+    function hide(el) { el.classList.add("hidden"); el.classList.remove("flex"); }
 
     function setMode(next) {
         mode = next;
-        var isLogin = mode === "login";
-        tabLogin.classList.toggle("text-primary", isLogin);
-        tabLogin.classList.toggle("border-primary", isLogin);
-        tabLogin.classList.toggle("text-on-surface-variant", !isLogin);
-        tabLogin.classList.toggle("border-transparent", !isLogin);
-        tabRegister.classList.toggle("text-primary", !isLogin);
-        tabRegister.classList.toggle("border-primary", !isLogin);
-        tabRegister.classList.toggle("text-on-surface-variant", isLogin);
-        tabRegister.classList.toggle("border-transparent", isLogin);
-        submitBtn.textContent = T(isLogin ? "auth.submit_login" : "auth.submit_register");
-        toggleBtn.textContent = T(isLogin ? "auth.toggle_to_register" : "auth.toggle_to_login");
-        passwordHint.classList.toggle("hidden", isLogin);
-        passwordInput.setAttribute("autocomplete", isLogin ? "current-password" : "new-password");
         hideMessages();
+        var isLogin = mode === "login", isRegister = mode === "register";
+        var isAuthForm = isLogin || isRegister;
+
+        if (isAuthForm) show(form); else hide(form);
+        if (mode === "forgot") show(forgotForm); else hide(forgotForm);
+        if (mode === "reset") show(resetForm); else hide(resetForm);
+        authTabs.classList.toggle("hidden", !isAuthForm);
+        forgotTitle.classList.toggle("hidden", mode !== "forgot");
+        resetTitle.classList.toggle("hidden", mode !== "reset");
+        toggleBtn.classList.toggle("hidden", !isAuthForm);
+        backToLoginBtn.classList.toggle("hidden", mode !== "forgot");
+        forgotPasswordLink.classList.toggle("hidden", !isLogin);
+
+        if (isAuthForm) {
+            tabLogin.classList.toggle("text-primary", isLogin);
+            tabLogin.classList.toggle("border-primary", isLogin);
+            tabLogin.classList.toggle("text-on-surface-variant", !isLogin);
+            tabLogin.classList.toggle("border-transparent", !isLogin);
+            tabRegister.classList.toggle("text-primary", !isLogin);
+            tabRegister.classList.toggle("border-primary", !isLogin);
+            tabRegister.classList.toggle("text-on-surface-variant", isLogin);
+            tabRegister.classList.toggle("border-transparent", isLogin);
+            submitBtn.textContent = T(isLogin ? "auth.submit_login" : "auth.submit_register");
+            toggleBtn.textContent = T(isLogin ? "auth.toggle_to_register" : "auth.toggle_to_login");
+            passwordHint.classList.toggle("hidden", isLogin);
+            passwordInput.setAttribute("autocomplete", isLogin ? "current-password" : "new-password");
+        }
     }
 
     function hideMessages() {
@@ -126,6 +195,8 @@
     tabLogin.addEventListener("click", function () { setMode("login"); });
     tabRegister.addEventListener("click", function () { setMode("register"); });
     toggleBtn.addEventListener("click", function () { setMode(mode === "login" ? "register" : "login"); });
+    forgotPasswordLink.addEventListener("click", function () { setMode("forgot"); });
+    backToLoginBtn.addEventListener("click", function () { setMode("login"); });
 
     form.addEventListener("submit", function (e) {
         e.preventDefault();
@@ -161,8 +232,65 @@
         });
     });
 
-    // If already signed in, skip straight to the app.
+    forgotForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        hideMessages();
+        var email = forgotEmailInput.value.trim();
+        if (!email) return;
+
+        forgotSubmitBtn.disabled = true;
+        forgotSubmitBtn.textContent = T("auth.sending");
+        window.TimePathAuth.resetPasswordForEmail(email).then(function () {
+            setMode("login");
+            showNotice(T("auth.reset_email_sent"));
+        }).catch(function (err) {
+            if (err && err.code === "cloud_unavailable") {
+                showError(T("auth.error_cloud_unavailable"));
+            } else {
+                showError((err && err.message) || T("auth.error_generic"));
+            }
+        }).finally(function () {
+            forgotSubmitBtn.disabled = false;
+            forgotSubmitBtn.textContent = T("auth.send_reset_email");
+        });
+    });
+
+    resetForm.addEventListener("submit", function (e) {
+        e.preventDefault();
+        hideMessages();
+        var pw1 = resetPasswordInput.value;
+        var pw2 = resetPasswordConfirmInput.value;
+        if (pw1.length < 6) return;
+        if (pw1 !== pw2) { showError(T("auth.password_mismatch")); return; }
+
+        resetSubmitBtn.disabled = true;
+        resetSubmitBtn.textContent = T("auth.saving");
+        window.TimePathAuth.updateUserPassword(pw1).then(function () {
+            window.location.href = "today.html";
+        }).catch(function (err) {
+            showError((err && err.message) || T("auth.error_generic"));
+        }).finally(function () {
+            resetSubmitBtn.disabled = false;
+            resetSubmitBtn.textContent = T("auth.save_new_password");
+        });
+    });
+
+    function enterRecoveryMode() {
+        // Strips the recovery token out of the visible address bar without
+        // reloading the page — it's already been consumed by the Supabase
+        // client, and leaving it in the URL just exposes it in browser
+        // history for no reason.
+        try { history.replaceState(null, "", window.location.pathname); } catch (e) {}
+        setMode("reset");
+    }
+    window.TimePathAuth.onPasswordRecovery(enterRecoveryMode);
+
+    if (isRecoveryLink) setMode("reset");
+
+    // If already signed in — and this isn't a password-recovery visit — skip
+    // straight to the app.
     window.TimePathAuth.ready.then(function () {
+        if (isRecoveryLink) return;
         if (window.TimePathAuth.getUser()) window.location.href = "today.html";
     });
 })();

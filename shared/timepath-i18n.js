@@ -277,6 +277,21 @@
         "auth.signing_in": { zh: "登录中…", en: "Signing in…" },
         "auth.signing_up": { zh: "注册中…", en: "Creating account…" },
 
+        "auth.forgot_password_link": { zh: "忘记密码？", en: "Forgot password?" },
+        "auth.forgot_title": { zh: "找回密码", en: "Reset Password" },
+        "auth.forgot_body": { zh: "输入注册时用的邮箱，我们会发一封重置密码的邮件给你。", en: "Enter the email you registered with — we'll send you a password reset link." },
+        "auth.send_reset_email": { zh: "发送重置邮件", en: "Send Reset Email" },
+        "auth.sending": { zh: "发送中…", en: "Sending…" },
+        "auth.reset_email_sent": { zh: "重置邮件已发送，请查收邮箱并点击里面的链接。", en: "Reset email sent — check your inbox and click the link inside." },
+        "auth.back_to_login": { zh: "返回登录", en: "Back to Sign In" },
+        "auth.reset_title": { zh: "设置新密码", en: "Set New Password" },
+        "auth.reset_body": { zh: "为你的账号设置一个新密码。", en: "Choose a new password for your account." },
+        "auth.new_password_label": { zh: "新密码", en: "New Password" },
+        "auth.confirm_password_label": { zh: "确认新密码", en: "Confirm New Password" },
+        "auth.save_new_password": { zh: "保存新密码", en: "Save New Password" },
+        "auth.saving": { zh: "保存中…", en: "Saving…" },
+        "auth.password_mismatch": { zh: "两次输入的密码不一致。", en: "Passwords don't match." },
+
         "migration.confirm_message": { zh: "检测到这是你在本设备上第一次登录，云端账户目前还没有数据。是否把本机现有的任务、SOP 和目标上传到云端？本机数据不会被删除。", en: "First time signing in on this device, and your cloud account is empty. Upload this device's existing tasks, SOPs, and goals to the cloud? Nothing on this device will be deleted." },
 
         "review.export_section_title": { zh: "导出数据", en: "Export Data" },

@@ -11,6 +11,7 @@
 (function () {
     var user = null; // { id, email } | null
     var listeners = [];
+    var recoveryListeners = [];
 
     function notify() {
         listeners.forEach(function (fn) {
@@ -39,8 +40,17 @@
             user = null;
         }
 
-        client.auth.onAuthStateChange(function (_event, session) {
+        client.auth.onAuthStateChange(function (event, session) {
             user = fromSession(session);
+            // Clicking the emailed reset link signs the browser into a
+            // short-lived recovery session and fires this event — listeners
+            // (login.html) use it to show the "set a new password" form
+            // instead of treating it as a normal sign-in.
+            if (event === "PASSWORD_RECOVERY") {
+                recoveryListeners.forEach(function (fn) {
+                    try { fn(); } catch (e) { console.error("[timepath-auth] recovery listener error", e); }
+                });
+            }
             notify();
         });
 
@@ -51,6 +61,7 @@
     function getUser() { return user; }
     function isConfigured() { return !!(window.TimePathSupabase && window.TimePathSupabase.isConfigured()); }
     function onChange(fn) { listeners.push(fn); }
+    function onPasswordRecovery(fn) { recoveryListeners.push(fn); }
 
     async function signUp(email, password) {
         var client = await ready;
@@ -69,6 +80,32 @@
         if (res.error) throw res.error;
         user = fromSession(res.data && res.data.session);
         notify();
+        return res.data;
+    }
+
+    // Sends the "reset your password" email. redirectTo must be pre-registered
+    // in the Supabase project (Authentication -> URL Configuration -> Redirect
+    // URLs) or Supabase silently redirects to its own default/error page
+    // instead of back into the app.
+    async function resetPasswordForEmail(email) {
+        var client = await ready;
+        if (!client) { var e1 = new Error("cloud_unavailable"); e1.code = "cloud_unavailable"; throw e1; }
+        var res = await client.auth.resetPasswordForEmail(email, {
+            redirectTo: window.location.origin + window.location.pathname
+        });
+        if (res.error) throw res.error;
+        return true;
+    }
+
+    // Only valid while signed into the short-lived recovery session created
+    // by clicking the emailed reset link (see the PASSWORD_RECOVERY event
+    // above) — calling this outside that flow fails because there's no
+    // session to update.
+    async function updateUserPassword(newPassword) {
+        var client = await ready;
+        if (!client) { var e2 = new Error("cloud_unavailable"); e2.code = "cloud_unavailable"; throw e2; }
+        var res = await client.auth.updateUser({ password: newPassword });
+        if (res.error) throw res.error;
         return res.data;
     }
 
@@ -133,9 +170,12 @@
         getUser: getUser,
         isConfigured: isConfigured,
         onChange: onChange,
+        onPasswordRecovery: onPasswordRecovery,
         signUp: signUp,
         signIn: signIn,
         signOut: signOut,
+        resetPasswordForEmail: resetPasswordForEmail,
+        updateUserPassword: updateUserPassword,
         mountNavUser: mountNavUser
     };
 })();
