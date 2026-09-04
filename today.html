@@ -82,7 +82,7 @@
 <!-- Main Content Area -->
 <main class="flex-1 ml-0 md:ml-64 flex flex-col min-h-screen relative pb-16">
 <!-- TopAppBar -->
-<header class="flex justify-between items-center h-16 px-margin-desktop bg-surface border-b border-outline-variant sticky top-0 z-20">
+<header class="flex justify-between items-center h-16 px-margin-mobile md:px-margin-desktop bg-surface border-b border-outline-variant sticky top-0 z-20">
 <div class="flex items-center gap-md">
 <h2 data-i18n="today.schedule_title" class="text-headline-sm font-headline-sm font-bold text-primary hidden md:block"></h2>
 <h2 class="text-headline-sm font-headline-sm font-bold text-primary md:hidden">时程｜TimePath</h2>
@@ -115,7 +115,7 @@
 </div>
 </header>
 <!-- Timeline Canvas -->
-<div class="flex-1 p-margin-desktop bg-surface overflow-y-auto">
+<div class="flex-1 p-margin-mobile md:p-margin-desktop bg-surface overflow-y-auto">
 <!-- Overload Banner -->
 <div id="overload-banner" data-i18n="today.overload_banner" class="hidden mb-md p-sm rounded border border-error bg-error-container text-on-error-container text-body-md font-bold"></div>
 <!-- Date Header -->
@@ -145,7 +145,7 @@
 <!-- Smart Suggestion Toast (Footer) — bottom-20 on mobile clears the fixed
      bottom tab bar (shared/timepath-nav.js); md:bottom-6 restores the
      original desktop position since that bar doesn't exist there. -->
-<div class="fixed bottom-20 md:bottom-6 right-margin-desktop bg-surface-container-highest border border-outline-variant rounded-lg p-sm pr-md shadow-lg flex items-center gap-sm max-w-sm z-50">
+<div class="fixed bottom-20 md:bottom-6 left-margin-mobile right-margin-mobile md:left-auto md:right-margin-desktop bg-surface-container-highest border border-outline-variant rounded-lg p-sm pr-md shadow-lg flex items-center gap-sm max-w-sm md:mx-0 mx-auto z-50">
 <div class="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
 <span class="material-symbols-outlined text-[18px]">lightbulb</span>
 </div>

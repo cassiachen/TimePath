@@ -59,6 +59,14 @@
         // (today/tasks/sop/review) with Goals first — matches how the
         // desktop sidebar visually leads with Goals too.
         var tabs = [GOAL_LINK, EXEC_LINKS[0], EXEC_LINKS[1], EXEC_LINKS[2], EXEC_LINKS[3]];
+        // 6th slot, account/sign-in — left EMPTY here on purpose. The
+        // desktop sidebar's account block (#nav-user-block, populated by
+        // timepath-auth.js's mountNavUser()) lives inside the "hidden
+        // md:flex" sidebar, so it was simply unreachable on mobile before
+        // this button existed: no way to sign in, see whose account is
+        // active, or sign out. mountNavUser() fills this button's icon/
+        // label/click-handler in too, same as the desktop block, so nav.js
+        // only needs to reserve the slot, not know about auth state.
         return '<nav id="mobile-tab-bar" class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface-container-low border-t border-outline-variant flex items-stretch" style="padding-bottom: env(safe-area-inset-bottom)">' +
             tabs.map(function (tab) {
                 var isActive = tab.key === active;
@@ -67,6 +75,7 @@
                     '<span class="font-mono-sm text-[10px] truncate' + (isActive ? " font-bold" : "") + '" data-i18n="' + tab.i18n + '"></span>' +
                     '</a>';
             }).join("") +
+            '<button type="button" id="mobile-account-btn" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 min-w-0 text-on-surface-variant"></button>' +
             '</nav>';
     }
 
