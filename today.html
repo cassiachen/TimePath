@@ -183,6 +183,20 @@
     var U = window.TimePathUtils, S = window.TimePathStore, T = window.TimePathI18n.t, GS = window.TimePathGoalStore;
     var migrationPromise = window.TimePathApp.initPage({ active: "today", showCalendar: true, titleKey: "nav.today" });
 
+    // Today always opens on today, scrolled to the current time — not
+    // whichever date was last viewed (prev/next-day navigation, or a
+    // selectedDate synced down from another device). Within a session the
+    // user can still navigate away via the calendar/prev/next-day controls;
+    // this only resets on a fresh page load. resetToToday() is called again
+    // after cloud hydration below, since a signed-in pull can bring down a
+    // stale selectedDate from another device after this first reset already
+    // ran.
+    function resetToToday() {
+        S.state.selectedDate = U.todayStr();
+        S.save();
+    }
+    resetToToday();
+
     var calMonth;
     var dismissedOverdue = {};
     var dragState = null;
@@ -716,7 +730,7 @@
 
     // Cloud data can arrive after this page already rendered from LocalStorage
     // (login pull, or first-login migration) — re-render once it lands.
-    window.addEventListener("timepath:hydrated", function () { initCalMonth(); renderAll(); });
+    window.addEventListener("timepath:hydrated", function () { resetToToday(); initCalMonth(); renderAll(); });
     setInterval(function () {
         document.querySelectorAll(".js-elapsed").forEach(function (el) {
             var cardEl = el.closest("[data-task-id]");
