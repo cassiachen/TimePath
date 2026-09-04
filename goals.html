@@ -46,9 +46,6 @@
     <!-- TopAppBar -->
     <header class="flex justify-between items-center h-16 px-margin-desktop bg-surface border-b border-outline-variant sticky top-0 z-20">
         <div class="flex items-center gap-md">
-            <button class="md:hidden p-sm text-on-surface-variant hover:bg-surface-container rounded-full transition-colors">
-                <span class="material-symbols-outlined">menu</span>
-            </button>
             <h2 data-i18n="nav.goals" class="text-headline-sm font-headline-sm font-bold text-primary hidden md:block"></h2>
             <h2 class="text-headline-sm font-headline-sm font-bold text-primary md:hidden">时程｜TimePath</h2>
         </div>
@@ -60,7 +57,7 @@
     </header>
 
     <!-- Main Content -->
-    <div class="flex-1 p-margin-desktop overflow-y-auto">
+    <div class="flex-1 p-margin-mobile md:p-margin-desktop overflow-y-auto pb-20 md:pb-8">
         <div class="max-w-7xl mx-auto flex flex-col gap-xl">
             <!-- Page positioning: what belongs here vs. Today / SOP -->
             <p data-i18n="goal.page_intro" class="text-body-lg text-on-surface-variant max-w-3xl -mt-md"></p>
@@ -152,6 +149,30 @@
         return tasks ? '<div class="flex flex-wrap gap-xs mt-sm">' + tasks + '</div>' : '';
     }
 
+    // Read-only summary on the card itself — same split as a task's subtasks
+    // on Today: the checklist is authored/checked off in the edit form, the
+    // card just shows how far along it is.
+    function getSubtasksProgressHtml(node) {
+        if (!Array.isArray(node.subtasks) || !node.subtasks.length) return '';
+        var done = node.subtasks.filter(function (s) { return s.done; }).length;
+        var pct = Math.round((done / node.subtasks.length) * 100);
+        return '<div class="flex items-center gap-sm mt-sm">' +
+            '<div class="flex-1 h-1 bg-surface-container rounded-full overflow-hidden max-w-[120px]"><div class="h-full bg-primary" style="width:' + pct + '%"></div></div>' +
+            '<span class="font-mono-sm text-[10px] text-on-surface-variant shrink-0">' + T("goal.subtasks_progress", { done: done, total: node.subtasks.length }) + '</span>' +
+            '</div>';
+    }
+
+    // Same row markup/behavior as the task form's subtask editor (see
+    // shared/timepath-task-form.js) — kept as its own copy since this modal
+    // is built inline in goals.html rather than through that shared module.
+    function subtaskRowHtml(sub) {
+        return '<div class="flex items-center gap-sm subtask-row" data-id="' + sub.id + '">' +
+            '<input type="checkbox" class="subtask-done w-4 h-4" ' + (sub.done ? "checked" : "") + '/>' +
+            '<input type="text" class="subtask-title flex-1 bg-surface-container border border-outline-variant rounded px-2 py-1 text-body-md text-on-surface" value="' + U.escapeHtml(sub.title) + '"/>' +
+            '<button type="button" class="subtask-remove text-on-surface-variant hover:text-error px-1">✕</button>' +
+            '</div>';
+    }
+
     function renderGoalPicker(goals) {
         var section = document.getElementById("goal-picker-section");
         if (goals.length < 2) { section.classList.add("hidden"); section.classList.remove("flex"); return; }
@@ -198,6 +219,7 @@
             (node.description ? '<p class="text-body-md text-on-surface-variant mt-xs">' + U.escapeHtml(node.description) + '</p>' : '') +
             '<p class="font-mono-sm text-[11px] text-on-surface-variant mt-xs">' + timeRange + '</p>' +
             getLinkedTasksHtml(node) +
+            getSubtasksProgressHtml(node) +
             '</div><div class="flex gap-xs flex-wrap justify-end shrink-0">' +
             '<button data-node-action="create-task" data-node-id="' + node.id + '" class="text-on-surface-variant hover:text-primary text-xs font-label-md">' + T("goal.create_task") + '</button>' +
             '<button data-node-action="toggle-status" data-node-id="' + node.id + '" class="text-on-surface-variant hover:text-primary text-xs font-label-md">' + T("goal.toggle_status") + '</button>' +
@@ -219,6 +241,7 @@
             (node.description ? '<p class="text-body-md text-on-surface-variant mt-sm">' + U.escapeHtml(node.description) + '</p>' : '') +
             '<p class="font-mono-sm text-mono-sm text-on-surface-variant mt-sm">' + timeRange + '</p>' +
             getLinkedTasksHtml(node) +
+            getSubtasksProgressHtml(node) +
             '</div><div class="flex gap-xs flex-wrap justify-end shrink-0">' +
             '<button data-node-action="create-task" data-node-id="' + node.id + '" class="text-on-surface-variant hover:text-primary text-xs font-label-md">' + T("goal.create_task") + '</button>' +
             '<button data-node-action="toggle-status" data-node-id="' + node.id + '" class="text-on-surface-variant hover:text-primary text-xs font-label-md">' + T("goal.toggle_status") + '</button>' +
@@ -382,25 +405,45 @@
         overlay.className = "fixed inset-0 bg-black/40 flex items-center justify-center z-50";
         overlay.setAttribute("data-modal-overlay", "true");
         var modal = document.createElement("div");
-        modal.className = "bg-surface rounded-lg shadow-lg p-lg max-w-sm w-full mx-margin-mobile";
+        modal.className = "bg-surface rounded-lg shadow-lg p-lg max-w-sm w-full mx-margin-mobile max-h-[85vh] overflow-y-auto";
         var title = (isEdit ? T("common.edit") : T("common.add")) + " " + getLevelLabel(isEdit ? existingNode.level : nodeLevel);
         var titleVal = isEdit ? existingNode.title : '';
         var descVal = isEdit ? existingNode.description : '';
         var suggested = isEdit ? null : (dateOverride || suggestNodeDates(goalId, nodeLevel, parentId));
         var startVal = isEdit ? existingNode.startDate : suggested.start;
         var endVal = isEdit ? existingNode.endDate : suggested.end;
+        var subtasksVal = isEdit && Array.isArray(existingNode.subtasks) ? existingNode.subtasks : [];
         modal.innerHTML = '<h2 class="text-headline-md font-headline-md text-on-surface mb-lg">' + title + '</h2>' +
             '<div class="space-y-md"><label class="flex flex-col gap-xs"><span class="font-label-md text-label-md text-on-surface-variant uppercase">' + T("goal.node_title") + '</span><input id="node-title" type="text" value="' + U.escapeHtml(titleVal) + '" class="bg-surface-container border border-outline-variant rounded px-md py-sm text-body-md text-on-surface" />' +
             '</label><label class="flex flex-col gap-xs"><span class="font-label-md text-label-md text-on-surface-variant uppercase">' + T("goal.node_description") + '</span><textarea id="node-desc" rows="3" class="bg-surface-container border border-outline-variant rounded px-md py-sm text-body-md text-on-surface">' + U.escapeHtml(descVal) + '</textarea>' +
             '</label><div class="grid grid-cols-2 gap-md"><label class="flex flex-col gap-xs"><span class="font-label-md text-label-md text-on-surface-variant uppercase text-[11px]">' + T("goalForm.start_label") + '</span><input id="node-start" type="date" value="' + startVal + '" class="bg-surface-container border border-outline-variant rounded px-md py-sm text-body-md text-on-surface" />' +
             '</label><label class="flex flex-col gap-xs"><span class="font-label-md text-label-md text-on-surface-variant uppercase text-[11px]">' + T("goalForm.end_label") + '</span><input id="node-end" type="date" value="' + endVal + '" class="bg-surface-container border border-outline-variant rounded px-md py-sm text-body-md text-on-surface" />' +
-            '</label></div></div><div class="mt-lg flex gap-sm justify-end"><button data-modal-close class="px-md py-sm rounded border border-outline-variant text-on-surface hover:bg-surface-container font-label-md">' + T("common.cancel") + '</button><button id="node-save-btn" class="px-md py-sm rounded bg-primary text-on-primary hover:bg-primary-container font-label-md">' + T("common.save") + '</button></div>';
+            '</label></div>' +
+            '<div class="flex flex-col gap-sm"><div class="flex items-center justify-between">' +
+            '<span class="font-label-md text-label-md text-on-surface-variant uppercase">' + T("taskForm.subtasks_label") + '</span>' +
+            '<button type="button" id="node-add-subtask" class="text-primary text-body-md font-bold">' + T("taskForm.add_subtask") + '</button>' +
+            '</div><div id="node-subtasks" class="flex flex-col gap-sm">' + subtasksVal.map(subtaskRowHtml).join("") + '</div></div>' +
+            '</div><div class="mt-lg flex gap-sm justify-end"><button data-modal-close class="px-md py-sm rounded border border-outline-variant text-on-surface hover:bg-surface-container font-label-md">' + T("common.cancel") + '</button><button id="node-save-btn" class="px-md py-sm rounded bg-primary text-on-primary hover:bg-primary-container font-label-md">' + T("common.save") + '</button></div>';
         overlay.appendChild(modal);
         document.body.appendChild(overlay);
         nodeFormModal = overlay;
 
         var closeHandler = function () { overlay.remove(); nodeFormModal = null; };
         window.TimePathModal.attachCommonModalBehavior(overlay, closeHandler);
+
+        var subtasksEl = document.getElementById("node-subtasks");
+        document.getElementById("node-add-subtask").addEventListener("click", function () {
+            var row = document.createElement("div");
+            row.innerHTML = subtaskRowHtml({ id: U.uid("sub"), title: "", done: false });
+            var node = row.firstElementChild;
+            subtasksEl.appendChild(node);
+            node.querySelector(".subtask-title").focus();
+        });
+        subtasksEl.addEventListener("click", function (e) {
+            if (e.target.classList.contains("subtask-remove")) {
+                e.target.closest(".subtask-row").remove();
+            }
+        });
 
         document.getElementById("node-save-btn").addEventListener("click", function () {
             var titleInput = document.getElementById("node-title");
@@ -410,11 +453,20 @@
                 titleInput.focus();
                 return;
             }
+            var subtasks = Array.prototype.map.call(subtasksEl.querySelectorAll(".subtask-row"), function (row) {
+                return {
+                    id: row.dataset.id,
+                    title: row.querySelector(".subtask-title").value.trim(),
+                    done: row.querySelector(".subtask-done").checked
+                };
+            }).filter(function (s) { return s.title; });
+
             var patch = {
                 title: title,
                 description: document.getElementById("node-desc").value.trim(),
                 startDate: document.getElementById("node-start").value,
-                endDate: document.getElementById("node-end").value
+                endDate: document.getElementById("node-end").value,
+                subtasks: subtasks
             };
             if (isEdit) {
                 S.updateNode(goalId, existingNodeId, patch);

@@ -99,11 +99,16 @@ create table if not exists goal_nodes (
   start_date date not null,
   end_date date not null,
   status text not null default 'active' check (status in ('active', 'done', 'paused')),
+  subtasks jsonb not null default '[]'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 create index if not exists goal_nodes_goal_idx on goal_nodes (goal_id);
 create index if not exists goal_nodes_parent_idx on goal_nodes (parent_id);
+-- Safe to re-run: adds the column for a database that already ran this file
+-- before `subtasks` existed here (create table if not exists is a no-op on
+-- an existing table, so the column above alone won't reach it).
+alter table goal_nodes add column if not exists subtasks jsonb not null default '[]'::jsonb;
 
 -- ============================================================
 -- goal_node_tasks — replaces the old Node.linkedTaskIds[] array with a

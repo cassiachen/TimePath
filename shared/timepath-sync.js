@@ -99,14 +99,14 @@
         return {
             id: n.id, user_id: userId, goal_id: n.goalId, parent_id: n.parentId || null, level: n.level,
             title: n.title || "", description: n.description || "", start_date: n.startDate, end_date: n.endDate,
-            status: n.status || "active"
+            status: n.status || "active", subtasks: n.subtasks || []
         };
     }
     function rowToNode(r) {
         return {
             id: r.id, goalId: r.goal_id, parentId: r.parent_id, level: r.level, title: r.title,
             description: r.description || "", startDate: r.start_date, endDate: r.end_date, status: r.status || "active",
-            linkedTaskIds: []
+            subtasks: r.subtasks || [], linkedTaskIds: []
         };
     }
 

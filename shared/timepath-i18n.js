@@ -231,6 +231,7 @@
         "goal.no_goals": { zh: "还没有目标，新建一个开始拆解吧。", en: "No goals yet — create one to start breaking it down." },
         "goal.add_week_to_month": { zh: "+ 本月新增周计划", en: "+ Add week to this month" },
         "goal.unlink_task": { zh: "取消关联", en: "Unlink" },
+        "goal.subtasks_progress": { zh: "子任务 {done}/{total}", en: "Subtasks {done}/{total}" },
         "today.linked_goal": { zh: "关联目标：{goal} · {node}", en: "Linked goal: {goal} · {node}" },
         "common.add": { zh: "新增", en: "Add" },
 

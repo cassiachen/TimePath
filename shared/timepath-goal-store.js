@@ -32,6 +32,18 @@
         });
     }
 
+    // Month/week nodes carry their own subtask checklist (same {id, title,
+    // done} shape as a task's subtasks) — filters out anything with no
+    // title (an abandoned empty row from the editor) and backfills a
+    // missing id, so cloud data with a slightly different shape still loads.
+    function normalizeSubtasks(raw) {
+        var list = Array.isArray(raw) ? raw : [];
+        return list.filter(function (s) { return s && typeof s.title === "string" && s.title.trim(); })
+            .map(function (s) {
+                return { id: s.id || uid("sub"), title: s.title.trim(), done: !!s.done };
+            });
+    }
+
     // Goal levels: the Goal itself is the ~year-scale target. It breaks down into
     // "month" nodes, which break down further into "week" nodes (nested via
     // parentId). There is no "day" level here — day-to-day scheduling of the
@@ -88,7 +100,8 @@
                             startDate: node.startDate || goal.startDate || todayStr(),
                             endDate: node.endDate || goal.endDate || addDays(todayStr(), 7),
                             status: node.status || "active",
-                            linkedTaskIds: normalizeLinkedTaskIds(Array.isArray(node.linkedTaskIds) ? node.linkedTaskIds : (node.linkedTaskId ? [node.linkedTaskId] : []))
+                            linkedTaskIds: normalizeLinkedTaskIds(Array.isArray(node.linkedTaskIds) ? node.linkedTaskIds : (node.linkedTaskId ? [node.linkedTaskId] : [])),
+                            subtasks: normalizeSubtasks(node.subtasks)
                         };
                     }) : []
                 };
@@ -240,8 +253,10 @@
             startDate: goal.startDate || todayStr(),
             endDate: goal.endDate || addDays(todayStr(), 7),
             status: "active",
-            linkedTaskIds: []
+            linkedTaskIds: [],
+            subtasks: []
         }, partial || {});
+        node.subtasks = normalizeSubtasks(node.subtasks);
         goal.nodes.push(node);
         goal.updatedAt = now();
         save();
@@ -263,9 +278,15 @@
         if (patch && patch.linkedTaskIds) {
             patch.linkedTaskIds = normalizeLinkedTaskIds(patch.linkedTaskIds);
         }
+        if (patch && patch.subtasks) {
+            patch.subtasks = normalizeSubtasks(patch.subtasks);
+        }
         Object.assign(node, patch);
         if (Array.isArray(node.linkedTaskIds)) {
             node.linkedTaskIds = normalizeLinkedTaskIds(node.linkedTaskIds);
+        }
+        if (Array.isArray(node.subtasks)) {
+            node.subtasks = normalizeSubtasks(node.subtasks);
         }
         goal.updatedAt = now();
         save();
