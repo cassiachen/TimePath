@@ -506,7 +506,13 @@
         if (!node) return;
 
         if (action.dataset.nodeAction === "create-task" || action.dataset.nodeAction === "create-task-from-table") {
-            var task = TS.addTask({ title: node.title, date: U.todayStr(), startTime: "10:00", estimatedMinutes: 60, priority: "should", category: currentGoal.category, status: "todo", note: node.description || "", sopId: null, energy: "mid" });
+            // Carry the node's own checklist over as a starting point for the
+            // generated task — fresh ids and unchecked, since this is a new
+            // work session, not the same checklist instance as the node's.
+            var carriedSubtasks = (node.subtasks || []).map(function (s) {
+                return { id: U.uid("sub"), title: s.title, done: false };
+            });
+            var task = TS.addTask({ title: node.title, date: U.todayStr(), startTime: "10:00", estimatedMinutes: 60, priority: "should", category: currentGoal.category, status: "todo", note: node.description || "", sopId: null, energy: "mid", subtasks: carriedSubtasks });
             var linkedTaskIds = upsertLinkedTask(node, task.id);
             S.updateNode(currentGoal.id, node.id, { linkedTaskIds: linkedTaskIds });
             renderAll();
