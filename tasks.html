@@ -39,6 +39,7 @@
      wide to share a row with the icon buttons on a narrow phone. -->
 <header class="bg-surface dark:bg-surface border-b border-outline-variant dark:border-outline-variant docked full-width top-0 sticky flex justify-between items-center h-16 px-margin-mobile md:px-margin-desktop z-30">
 <div class="flex-1 flex items-center gap-md">
+<div id="mobile-nav-goals-slot" class="md:hidden"></div>
 <div class="relative w-full max-w-md hidden sm:block">
 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
 <input id="task-search" data-i18n-placeholder="common.search_tasks" class="w-full pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant rounded-full font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all" placeholder="" type="text"/>
@@ -55,6 +56,7 @@
 <button id="settings-btn" class="w-10 h-10 flex items-center justify-center text-on-surface-variant hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full cursor-pointer transition-opacity active:opacity-70">
 <span class="material-symbols-outlined">settings</span>
 </button>
+<div id="mobile-nav-account-slot" class="md:hidden"></div>
 </div>
 </header>
 <!-- Page Content -->

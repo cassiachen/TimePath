@@ -46,6 +46,7 @@
     <!-- TopAppBar -->
     <header class="flex justify-between items-center h-16 px-margin-mobile md:px-margin-desktop bg-surface border-b border-outline-variant sticky top-0 z-20">
         <div class="flex items-center gap-md">
+            <div id="mobile-nav-goals-slot" class="md:hidden"></div>
             <h2 data-i18n="nav.goals" class="text-headline-sm font-headline-sm font-bold text-primary hidden md:block"></h2>
             <h2 class="text-headline-sm font-headline-sm font-bold text-primary md:hidden">时程｜TimePath</h2>
         </div>
@@ -53,6 +54,7 @@
             <button id="new-goal-btn" class="px-md py-sm rounded bg-primary text-on-primary font-label-md text-label-md hover:bg-primary-container transition-colors flex items-center gap-sm">
                 <span class="material-symbols-outlined text-[18px]">add</span><span class="hidden md:inline" data-i18n="goal.new_goal"></span>
             </button>
+            <div id="mobile-nav-account-slot" class="md:hidden"></div>
         </div>
     </header>
 

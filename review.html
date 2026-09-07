@@ -30,12 +30,10 @@
 <!-- TopAppBar -->
 <header class="bg-surface dark:bg-surface border-b border-outline-variant dark:border-outline-variant docked full-width top-0 sticky flex justify-between items-center h-16 px-margin-mobile md:px-margin-desktop z-40">
 <div class="flex items-center gap-4">
+<div id="mobile-nav-goals-slot" class="md:hidden"></div>
 <h2 data-i18n="review.header_title" class="font-headline-sm text-headline-sm text-on-surface font-semibold"></h2>
 </div>
 <div class="flex items-center gap-2">
-<button class="p-2 text-on-surface-variant hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full cursor-pointer transition-opacity active:opacity-70 flex items-center justify-center">
-<span class="material-symbols-outlined">timer</span>
-</button>
 <button class="p-2 text-on-surface-variant hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full cursor-pointer transition-opacity active:opacity-70 flex items-center justify-center relative">
 <span class="material-symbols-outlined">notifications</span>
 <span class="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border border-surface"></span>
@@ -43,6 +41,7 @@
 <button id="settings-btn" class="p-2 text-on-surface-variant hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full cursor-pointer transition-opacity active:opacity-70 flex items-center justify-center">
 <span class="material-symbols-outlined">settings</span>
 </button>
+<div id="mobile-nav-account-slot" class="md:hidden"></div>
 </div>
 </header>
 <div class="p-margin-mobile md:p-margin-desktop max-w-7xl mx-auto w-full space-y-8 pb-24">

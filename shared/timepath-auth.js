@@ -184,11 +184,12 @@
         }
     }
 
-    // The mobile bottom tab bar's 6th slot (see timepath-nav.js's
-    // mobileTabBarHtml) — the only way to reach login.html, or sign out,
-    // on a phone, since the desktop sidebar's #nav-user-block block that
-    // normally does this lives inside "hidden md:flex". Same three states
-    // as the desktop block, compressed into one icon+label tab: not
+    // Lives in each page's own header now (top-right — see timepath-nav.js's
+    // mobileAccountSlotHtml/#mobile-nav-account-slot), the only way to reach
+    // login.html, or sign out, on a phone, since the desktop sidebar's
+    // #nav-user-block block that normally does this lives inside "hidden
+    // md:flex". Icon-only (a header has no room for the tab bar's old
+    // icon+label), with the state in the title tooltip instead: not
     // configured (inert), signed out (tap -> login.html), signed in (tap ->
     // confirm + sign out, since there's no separate account page to land on).
     function mountMobileAccountButton() {
@@ -198,23 +199,19 @@
         btn.onclick = null;
 
         if (!isConfigured()) {
-            btn.innerHTML =
-                '<span class="material-symbols-outlined text-[22px]">cloud_off</span>' +
-                '<span class="font-mono-sm text-[10px] truncate" data-i18n="auth.mobile_tab_local_only"></span>';
+            btn.innerHTML = '<span class="material-symbols-outlined text-[22px]">cloud_off</span>';
+            btn.title = T("auth.mobile_tab_local_only");
         } else if (user) {
-            btn.innerHTML =
-                '<span class="material-symbols-outlined text-[22px]">account_circle</span>' +
-                '<span class="font-mono-sm text-[10px] truncate" data-i18n="auth.mobile_tab_signed_in"></span>';
+            btn.innerHTML = '<span class="material-symbols-outlined text-[22px]">account_circle</span>';
+            btn.title = T("auth.mobile_tab_signed_in");
             btn.onclick = function () {
                 window.TimePathModal.confirmDialog(T("auth.confirm_sign_out"), function () { signOut(); });
             };
         } else {
-            btn.innerHTML =
-                '<span class="material-symbols-outlined text-[22px]">account_circle</span>' +
-                '<span class="font-mono-sm text-[10px] truncate" data-i18n="auth.mobile_tab_signed_out"></span>';
+            btn.innerHTML = '<span class="material-symbols-outlined text-[22px]">account_circle</span>';
+            btn.title = T("auth.mobile_tab_signed_out");
             btn.onclick = function () { window.location.href = "login.html"; };
         }
-        if (window.TimePathI18n) window.TimePathI18n.applyStatic(btn);
     }
 
     window.TimePathAuth = {

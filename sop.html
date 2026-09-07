@@ -25,8 +25,20 @@
 </head>
 <body class="bg-background text-on-surface font-body-md text-body-md h-full flex antialiased">
 <div id="nav-mount"></div>
+<!-- sop.html has no page-level header of its own (the aside's own list
+     header stands in for one on desktop) — this is the only page missing
+     the Goals/account corners the other 4 pages' headers carry, so it
+     gets a slim fixed one just for mobile. pt-12 on main below reserves
+     room for it since it's position:fixed, not in the body's normal flex
+     flow (body has no explicit flex-direction, so an in-flow sibling here
+     would sit beside <main>, not above it). -->
+<header id="sop-mobile-header" class="md:hidden fixed top-0 left-0 right-0 z-30 h-12 bg-surface border-b border-outline-variant flex items-center justify-between px-margin-mobile">
+<div id="mobile-nav-goals-slot"></div>
+<span class="font-headline-sm text-headline-sm font-bold text-primary">时程｜TimePath</span>
+<div id="mobile-nav-account-slot"></div>
+</header>
 <!-- Main Content Area -->
-<main class="ml-0 md:ml-64 flex-1 flex flex-col md:flex-row h-full">
+<main class="ml-0 md:ml-64 flex-1 flex flex-col md:flex-row h-full pt-12 md:pt-0">
 <!-- Left Column: SOP List -->
 <aside class="w-full md:w-80 max-h-72 md:max-h-none border-b md:border-b-0 md:border-r border-outline-variant bg-surface-container-lowest flex flex-col md:h-full shrink-0">
 <!-- Header -->

@@ -50,33 +50,52 @@
     // through the page's own header/main markup — the 5 pages' surrounding
     // structure differs too much page to page (sop.html has no top header
     // at all; it's a two-pane layout) to hang a nav off any of them
-    // consistently. This is the ONLY mobile nav surface — there is no
+    // consistently. This is the ONLY mobile TAB nav surface — there is no
     // hamburger/drawer alternative, so every page must reserve bottom
     // padding for it (see today.html etc.) or this bar covers their last
-    // bit of content.
+    // bit of content. Goals and the account button used to live here too
+    // (6 items total); moved to the top corners (see mobileGoalsLinkHtml /
+    // #mobile-nav-account-slot below) to cut the bar back down to the 4
+    // day-to-day destinations — 6 same-size icons in one row read as "too
+    // many" and buried Goals/account among peers they aren't really peers
+    // of (see the goalLinkHtml comment above on why Goals is a tier apart
+    // on desktop too).
     function mobileTabBarHtml(active) {
-        // Same 5 destinations as the desktop sidebar, in execution order
-        // (today/tasks/sop/review) with Goals first — matches how the
-        // desktop sidebar visually leads with Goals too.
-        var tabs = [GOAL_LINK, EXEC_LINKS[0], EXEC_LINKS[1], EXEC_LINKS[2], EXEC_LINKS[3]];
-        // 6th slot, account/sign-in — left EMPTY here on purpose. The
-        // desktop sidebar's account block (#nav-user-block, populated by
-        // timepath-auth.js's mountNavUser()) lives inside the "hidden
-        // md:flex" sidebar, so it was simply unreachable on mobile before
-        // this button existed: no way to sign in, see whose account is
-        // active, or sign out. mountNavUser() fills this button's icon/
-        // label/click-handler in too, same as the desktop block, so nav.js
-        // only needs to reserve the slot, not know about auth state.
         return '<nav id="mobile-tab-bar" class="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-surface-container-low border-t border-outline-variant flex items-stretch" style="padding-bottom: env(safe-area-inset-bottom)">' +
-            tabs.map(function (tab) {
+            EXEC_LINKS.map(function (tab) {
                 var isActive = tab.key === active;
                 return '<a href="' + tab.href + '" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 min-w-0' + (isActive ? " text-primary" : " text-on-surface-variant") + '">' +
                     '<span class="material-symbols-outlined text-[22px]"' + (isActive ? ' style="font-variation-settings: \'FILL\' 1;"' : '') + '>' + tab.icon + '</span>' +
                     '<span class="font-mono-sm text-[10px] truncate' + (isActive ? " font-bold" : "") + '" data-i18n="' + tab.i18n + '"></span>' +
                     '</a>';
             }).join("") +
-            '<button type="button" id="mobile-account-btn" class="flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 min-w-0 text-on-surface-variant"></button>' +
             '</nav>';
+    }
+
+    // Filled into each page's own header, in a `<div id="mobile-nav-goals-
+    // slot" class="md:hidden">` marker — top-left, mirroring where Goals
+    // sits (also top, also set apart) in the desktop sidebar. Icon-only:
+    // every page's header is already tight on mobile (title text, action
+    // buttons), and "flag" plus this being the one non-active-page icon up
+    // there is enough to read as "go to Goals" without a label.
+    function mobileGoalsLinkHtml(active) {
+        var isActive = GOAL_LINK.key === active;
+        return '<a href="' + GOAL_LINK.href + '" class="md:hidden flex items-center justify-center w-9 h-9 -ml-1 rounded-full' +
+            (isActive ? " text-primary" : " text-on-surface-variant hover:bg-surface-container") + '" data-i18n-title="' + GOAL_LINK.i18n + '">' +
+            '<span class="material-symbols-outlined text-[22px]"' + (isActive ? ' style="font-variation-settings: \'FILL\' 1;"' : '') + '>' + GOAL_LINK.icon + '</span>' +
+            '</a>';
+    }
+
+    // Filled into each page's own header, in a `<div id="mobile-nav-
+    // account-slot" class="md:hidden">` marker — top-right. Just reserves
+    // an empty #mobile-account-btn shell here; timepath-auth.js's
+    // mountMobileAccountButton() (called from mountNavUser(), same as the
+    // desktop #nav-user-block) fills in the icon/label/click-handler based
+    // on sign-in state, same as before when this button lived in the
+    // bottom tab bar — only WHERE it's mounted changed, not who owns its
+    // content.
+    function mobileAccountSlotHtml() {
+        return '<button type="button" id="mobile-account-btn" class="md:hidden flex items-center justify-center w-9 h-9 rounded-full text-on-surface-variant hover:bg-surface-container"></button>';
     }
 
     function calendarHtml() {
@@ -129,6 +148,19 @@
         if (existingTabBar) existingTabBar.remove();
         document.body.insertAdjacentHTML("beforeend", mobileTabBarHtml(opts.active));
 
+        // Each page reserves these two empty marker divs somewhere in its
+        // own header (or, for sop.html which has no header, its own small
+        // mobile-only stand-in) — filled in here rather than each page
+        // hardcoding the Goals link / account button shell itself, same
+        // "one source of truth" reasoning as the rest of this file. Both
+        // are optional: a page missing a slot just doesn't get that icon,
+        // nothing errors.
+        var goalsSlot = document.getElementById("mobile-nav-goals-slot");
+        if (goalsSlot) goalsSlot.innerHTML = mobileGoalsLinkHtml(opts.active);
+        var accountSlot = document.getElementById("mobile-nav-account-slot");
+        if (accountSlot) accountSlot.innerHTML = mobileAccountSlotHtml();
+
+        if (window.TimePathI18n) window.TimePathI18n.applyStatic();
         if (window.TimePathAuth && typeof window.TimePathAuth.mountNavUser === "function") {
             window.TimePathAuth.mountNavUser();
         }
