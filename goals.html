@@ -107,6 +107,7 @@
 <script src="shared/timepath-nav.js"></script>
 <script src="shared/timepath-app.js"></script>
 <script src="shared/timepath-modal.js"></script>
+<script src="shared/timepath-subtask-editor.js"></script>
 <script src="shared/timepath-goal-form.js"></script>
 <script>
 (function () {
@@ -161,17 +162,6 @@
         return '<div class="flex items-center gap-sm mt-sm">' +
             '<div class="flex-1 h-1 bg-surface-container rounded-full overflow-hidden max-w-[120px]"><div class="h-full bg-primary" style="width:' + pct + '%"></div></div>' +
             '<span class="font-mono-sm text-[10px] text-on-surface-variant shrink-0">' + T("goal.subtasks_progress", { done: done, total: node.subtasks.length }) + '</span>' +
-            '</div>';
-    }
-
-    // Same row markup/behavior as the task form's subtask editor (see
-    // shared/timepath-task-form.js) — kept as its own copy since this modal
-    // is built inline in goals.html rather than through that shared module.
-    function subtaskRowHtml(sub) {
-        return '<div class="flex items-center gap-sm subtask-row" data-id="' + sub.id + '">' +
-            '<input type="checkbox" class="subtask-done w-4 h-4" ' + (sub.done ? "checked" : "") + '/>' +
-            '<input type="text" class="subtask-title flex-1 bg-surface-container border border-outline-variant rounded px-2 py-1 text-body-md text-on-surface" value="' + U.escapeHtml(sub.title) + '"/>' +
-            '<button type="button" class="subtask-remove text-on-surface-variant hover:text-error px-1">✕</button>' +
             '</div>';
     }
 
@@ -424,7 +414,7 @@
             '<div class="flex flex-col gap-sm"><div class="flex items-center justify-between">' +
             '<span class="font-label-md text-label-md text-on-surface-variant uppercase">' + T("taskForm.subtasks_label") + '</span>' +
             '<button type="button" id="node-add-subtask" class="text-primary text-body-md font-bold">' + T("taskForm.add_subtask") + '</button>' +
-            '</div><div id="node-subtasks" class="flex flex-col gap-sm">' + subtasksVal.map(subtaskRowHtml).join("") + '</div></div>' +
+            '</div><div id="node-subtasks" class="flex flex-col gap-sm"></div></div>' +
             '</div><div class="mt-lg flex gap-sm justify-end"><button data-modal-close class="px-md py-sm rounded border border-outline-variant text-on-surface hover:bg-surface-container font-label-md">' + T("common.cancel") + '</button><button id="node-save-btn" class="px-md py-sm rounded bg-primary text-on-primary hover:bg-primary-container font-label-md">' + T("common.save") + '</button></div>';
         overlay.appendChild(modal);
         document.body.appendChild(overlay);
@@ -433,19 +423,11 @@
         var closeHandler = function () { overlay.remove(); nodeFormModal = null; };
         window.TimePathModal.attachCommonModalBehavior(overlay, closeHandler);
 
-        var subtasksEl = document.getElementById("node-subtasks");
-        document.getElementById("node-add-subtask").addEventListener("click", function () {
-            var row = document.createElement("div");
-            row.innerHTML = subtaskRowHtml({ id: U.uid("sub"), title: "", done: false });
-            var node = row.firstElementChild;
-            subtasksEl.appendChild(node);
-            node.querySelector(".subtask-title").focus();
-        });
-        subtasksEl.addEventListener("click", function (e) {
-            if (e.target.classList.contains("subtask-remove")) {
-                e.target.closest(".subtask-row").remove();
-            }
-        });
+        var subtaskEditor = window.TimePathSubtaskEditor.mount(
+            document.getElementById("node-subtasks"),
+            document.getElementById("node-add-subtask"),
+            subtasksVal
+        );
 
         document.getElementById("node-save-btn").addEventListener("click", function () {
             var titleInput = document.getElementById("node-title");
@@ -455,13 +437,7 @@
                 titleInput.focus();
                 return;
             }
-            var subtasks = Array.prototype.map.call(subtasksEl.querySelectorAll(".subtask-row"), function (row) {
-                return {
-                    id: row.dataset.id,
-                    title: row.querySelector(".subtask-title").value.trim(),
-                    done: row.querySelector(".subtask-done").checked
-                };
-            }).filter(function (s) { return s.title; });
+            var subtasks = subtaskEditor.getValue();
 
             var patch = {
                 title: title,

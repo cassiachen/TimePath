@@ -175,6 +175,7 @@
 <script src="shared/timepath-app.js"></script>
 <script src="shared/timepath-modal.js"></script>
 <script src="shared/timepath-ui.js"></script>
+<script src="shared/timepath-subtask-editor.js"></script>
 <script src="shared/timepath-task-form.js"></script>
 <script src="shared/timepath-settings-form.js"></script>
 <script>
@@ -189,8 +190,13 @@
     // this only resets on a fresh page load. resetToToday() is called again
     // after cloud hydration below, since a signed-in pull can bring down a
     // stale selectedDate from another device after this first reset already
-    // ran.
+    // ran — but only if the user hasn't already navigated away in this same
+    // session (userNavigatedThisSession), so a slow cloud pull landing after
+    // the user clicked "next day" to plan ahead doesn't silently snap them
+    // back to today.
+    var userNavigatedThisSession = false;
     function resetToToday() {
+        if (S.state.selectedDate === U.todayStr()) return;
         S.state.selectedDate = U.todayStr();
         S.save();
     }
@@ -295,8 +301,14 @@
     var CARD_META_MIN_PX = 68;     // + duration/energy/goal-badge row
     var CARD_OVERDUE_MIN_PX = 80;  // + overdue action row (its own line — needs meta's row already showing plus its own ~20px, measured empirically so it never gets clipped)
     var CARD_NOTE_MIN_PX = 100;    // + note text
-    function renderTaskCard(task, slotHeight) {
+    function renderTaskCard(task, slotHeight, mobile) {
         slotHeight = slotHeight || Infinity;
+        // mobile is optional — renderTimeline() below computes it once per
+        // render pass and passes it through, since window.innerWidth can't
+        // change between cards in the same pass; a caller without it (there
+        // isn't one today, but this keeps the function safe standalone)
+        // falls back to reading it itself.
+        if (mobile === undefined) mobile = isMobileViewport();
         var isDone = task.status === "done";
         var overdue = isOverdue(task);
 
@@ -329,7 +341,7 @@
         // divider line itself is deliberate, not just a leftover default.
         var overdueBlock = "";
         if (overdue && slotHeight >= CARD_OVERDUE_MIN_PX) {
-            overdueBlock = isMobileViewport()
+            overdueBlock = mobile
                 ? '<div class="mt-xs pt-xs border-t border-outline-variant flex items-center gap-xs">' +
                     '<span class="tp-card-meta text-error font-bold shrink-0 mr-0.5">' + T("today.overdue") + '</span>' +
                     overdueActionsIconsHtml() +
@@ -435,6 +447,7 @@
         var isToday = date === U.todayStr();
         var nowMin = new Date().getHours() * 60 + new Date().getMinutes();
         var layout = layoutTasks(tasks);
+        var mobile = isMobileViewport();
 
         var hourLabels = [];
         var hourLines = [];
@@ -456,7 +469,7 @@
             // to actually fit its slot instead of relying on scroll as a
             // safety net.
             var style = 'top:' + top + 'px; height:' + height + 'px; left:calc(' + leftPct + '% + 3px); width:calc(' + widthPct + '% - 6px); overflow:hidden;';
-            var inner = task.isBuffer ? renderBufferCard(task) : renderTaskCard(task, height);
+            var inner = task.isBuffer ? renderBufferCard(task) : renderTaskCard(task, height, mobile);
             return '<div class="absolute task-block" style="' + style + '">' + inner + '</div>';
         }).join("");
 
@@ -529,6 +542,7 @@
     document.getElementById("mini-calendar-grid").addEventListener("click", function (e) {
         var cell = e.target.closest("[data-date]");
         if (!cell) return;
+        userNavigatedThisSession = true;
         S.state.selectedDate = cell.dataset.date;
         S.save();
         initCalMonth();
@@ -543,9 +557,11 @@
         renderCalendar();
     });
     document.getElementById("prev-day-btn").addEventListener("click", function () {
+        userNavigatedThisSession = true;
         S.state.selectedDate = U.addDays(S.state.selectedDate, -1); S.save(); initCalMonth(); renderAll();
     });
     document.getElementById("next-day-btn").addEventListener("click", function () {
+        userNavigatedThisSession = true;
         S.state.selectedDate = U.addDays(S.state.selectedDate, 1); S.save(); initCalMonth(); renderAll();
     });
 
@@ -729,7 +745,11 @@
 
     // Cloud data can arrive after this page already rendered from LocalStorage
     // (login pull, or first-login migration) — re-render once it lands.
-    window.addEventListener("timepath:hydrated", function () { resetToToday(); initCalMonth(); renderAll(); });
+    window.addEventListener("timepath:hydrated", function () {
+        if (!userNavigatedThisSession) resetToToday();
+        initCalMonth();
+        renderAll();
+    });
     setInterval(function () {
         document.querySelectorAll(".js-elapsed").forEach(function (el) {
             var cardEl = el.closest("[data-task-id]");

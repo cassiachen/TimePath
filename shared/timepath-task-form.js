@@ -25,14 +25,6 @@
         return opts.join("");
     }
 
-    function subtaskRowHtml(sub) {
-        return '<div class="flex items-center gap-sm subtask-row" data-id="' + sub.id + '">' +
-            '<input type="checkbox" class="subtask-done w-4 h-4" ' + (sub.done ? "checked" : "") + '/>' +
-            '<input type="text" class="subtask-title flex-1 bg-surface border border-outline-variant rounded px-2 py-1 text-body-md" value="' + U.escapeHtml(sub.title) + '"/>' +
-            '<button type="button" class="subtask-remove text-on-surface-variant hover:text-error px-1">✕</button>' +
-            '</div>';
-    }
-
     function open(taskId, options) {
         options = options || {};
         close();
@@ -127,7 +119,7 @@
             '        <span class="font-label-md text-label-md text-on-surface-variant uppercase tracking-wider">' + T("taskForm.subtasks_label") + '</span>' +
             '        <button type="button" class="tf-add-subtask text-primary text-body-md font-bold">' + T("taskForm.add_subtask") + '</button>' +
             '      </div>' +
-            '      <div class="tf-subtasks flex flex-col gap-sm">' + task.subtasks.map(subtaskRowHtml).join("") + '</div>' +
+            '      <div class="tf-subtasks flex flex-col gap-sm"></div>' +
             '    </div>' +
             '    <div class="flex items-center justify-between gap-md pt-sm border-t border-outline-variant">' +
             (isNew ? '<span></span>' : '<button type="button" class="tf-delete text-error text-body-md font-bold">' + T("taskForm.delete_task") + '</button>') +
@@ -144,20 +136,11 @@
         window.TimePathModal.attachCommonModalBehavior(overlayEl, close);
 
         var form = overlayEl.querySelector("form");
-        var subtasksEl = overlayEl.querySelector(".tf-subtasks");
-
-        overlayEl.querySelector(".tf-add-subtask").addEventListener("click", function () {
-            var row = document.createElement("div");
-            row.innerHTML = subtaskRowHtml({ id: U.uid("sub"), title: "", done: false });
-            var node = row.firstElementChild;
-            subtasksEl.appendChild(node);
-            node.querySelector(".subtask-title").focus();
-        });
-        subtasksEl.addEventListener("click", function (e) {
-            if (e.target.classList.contains("subtask-remove")) {
-                e.target.closest(".subtask-row").remove();
-            }
-        });
+        var subtaskEditor = window.TimePathSubtaskEditor.mount(
+            overlayEl.querySelector(".tf-subtasks"),
+            overlayEl.querySelector(".tf-add-subtask"),
+            task.subtasks
+        );
 
         var sopSelect = overlayEl.querySelector(".tf-sop");
         var durationInput = form.elements.estimatedMinutes;
@@ -195,13 +178,7 @@
 
         form.addEventListener("submit", function (e) {
             e.preventDefault();
-            var subtasks = Array.prototype.map.call(subtasksEl.querySelectorAll(".subtask-row"), function (row) {
-                return {
-                    id: row.dataset.id,
-                    title: row.querySelector(".subtask-title").value.trim(),
-                    done: row.querySelector(".subtask-done").checked
-                };
-            }).filter(function (s) { return s.title; });
+            var subtasks = subtaskEditor.getValue();
 
             var patch = {
                 title: form.elements.title.value.trim() || "Untitled task",

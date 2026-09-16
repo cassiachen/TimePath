@@ -130,6 +130,23 @@
         }
     }
 
+    // Shared {id, title, done} subtask-list validation — a task's own
+    // subtasks and a goal month/week node's subtasks use this identical
+    // shape. Filters out anything with no title (an abandoned empty row
+    // from the editor), trims what's left, and backfills a missing id (a
+    // cloud row from an older client shape, for instance). Used both by
+    // the stores themselves (so malformed data can never reach rendering,
+    // regardless of where it came from — cloud pull, an older client, a
+    // future non-UI caller) and by shared/timepath-subtask-editor.js's
+    // save-time extraction.
+    function normalizeSubtasks(raw) {
+        var list = Array.isArray(raw) ? raw : [];
+        return list.filter(function (s) { return s && typeof s.title === "string" && s.title.trim(); })
+            .map(function (s) {
+                return { id: s.id || uid("sub"), title: s.title.trim(), done: !!s.done };
+            });
+    }
+
     function escapeHtml(str) {
         return String(str == null ? "" : str).replace(/[&<>"']/g, function (c) {
             return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
@@ -155,6 +172,7 @@
         statusTextClass: statusTextClass, statusDotClass: statusDotClass,
         timeToMinutes: timeToMinutes, minutesToTime: minutesToTime, minutesLabel: minutesLabel,
         roundTo15: roundTo15, clamp: clamp, buildMonthGrid: buildMonthGrid, escapeHtml: escapeHtml,
+        normalizeSubtasks: normalizeSubtasks,
         markUserDataDirty: markUserDataDirty, markSeedOnlyIfUnset: markSeedOnlyIfUnset, hasUserData: hasUserData
     };
 })();

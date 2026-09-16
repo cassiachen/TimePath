@@ -32,16 +32,12 @@
         });
     }
 
-    // Month/week nodes carry their own subtask checklist (same {id, title,
-    // done} shape as a task's subtasks) — filters out anything with no
-    // title (an abandoned empty row from the editor) and backfills a
-    // missing id, so cloud data with a slightly different shape still loads.
+    // Month/week nodes carry their own subtask checklist — same {id, title,
+    // done} shape and same validation as a task's own subtasks, so this
+    // just delegates to the one shared implementation (shared/timepath-
+    // utils.js) instead of keeping its own copy.
     function normalizeSubtasks(raw) {
-        var list = Array.isArray(raw) ? raw : [];
-        return list.filter(function (s) { return s && typeof s.title === "string" && s.title.trim(); })
-            .map(function (s) {
-                return { id: s.id || uid("sub"), title: s.title.trim(), done: !!s.done };
-            });
+        return window.TimePathUtils.normalizeSubtasks(raw);
     }
 
     // Goal levels: the Goal itself is the ~year-scale target. It breaks down into
@@ -278,15 +274,17 @@
         if (patch && patch.linkedTaskIds) {
             patch.linkedTaskIds = normalizeLinkedTaskIds(patch.linkedTaskIds);
         }
+        // Normalized once here, before Object.assign copies it onto node —
+        // no need to re-normalize node.subtasks afterward, since it's
+        // already either this same normalized array or (when patch didn't
+        // include subtasks at all) whatever was already on node from a
+        // previous save.
         if (patch && patch.subtasks) {
             patch.subtasks = normalizeSubtasks(patch.subtasks);
         }
         Object.assign(node, patch);
         if (Array.isArray(node.linkedTaskIds)) {
             node.linkedTaskIds = normalizeLinkedTaskIds(node.linkedTaskIds);
-        }
-        if (Array.isArray(node.subtasks)) {
-            node.subtasks = normalizeSubtasks(node.subtasks);
         }
         goal.updatedAt = now();
         save();

@@ -34,18 +34,14 @@
 <!-- Main Content Area -->
 <main class="flex-1 ml-0 md:ml-64 flex flex-col min-h-screen pb-20 md:pb-0">
 <!-- Top App Bar. Was hidden md:flex — fully invisible on mobile with no
-     other way to reach the settings button — now visible at every width;
-     the search input alone hides below sm since it's the one piece too
-     wide to share a row with the icon buttons on a narrow phone. -->
-<header class="bg-surface dark:bg-surface border-b border-outline-variant dark:border-outline-variant docked full-width top-0 sticky flex justify-between items-center h-16 px-margin-mobile md:px-margin-desktop z-30">
-<div class="flex-1 flex items-center gap-md">
-<div id="mobile-nav-goals-slot" class="md:hidden"></div>
-<div class="relative w-full max-w-md hidden sm:block">
-<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
-<input id="task-search" data-i18n-placeholder="common.search_tasks" class="w-full pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant rounded-full font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all" placeholder="" type="text"/>
-</div>
-</div>
-<div class="flex items-center gap-sm">
+     other way to reach the settings button — now visible at every width.
+     flex-wrap + order (rather than a second hardcoded header) lets the
+     SAME #task-search input sit inline with the icons on desktop but wrap
+     to its own full-width row on mobile, instead of just disappearing
+     below sm like it did before — a phone still needs to search tasks. -->
+<header class="bg-surface dark:bg-surface border-b border-outline-variant dark:border-outline-variant docked full-width top-0 sticky flex flex-wrap items-center h-auto md:h-16 px-margin-mobile md:px-margin-desktop py-sm md:py-0 gap-sm md:gap-md z-30">
+<div id="mobile-nav-goals-slot" class="md:hidden order-1"></div>
+<div class="flex items-center gap-sm order-2 ml-auto md:ml-0 md:order-3">
 <button class="hidden md:flex w-10 h-10 items-center justify-center text-on-surface-variant hover:bg-surface-container dark:hover:bg-surface-container-high rounded-full cursor-pointer transition-opacity active:opacity-70">
 <span class="material-symbols-outlined">timer</span>
 </button>
@@ -57,6 +53,10 @@
 <span class="material-symbols-outlined">settings</span>
 </button>
 <div id="mobile-nav-account-slot" class="md:hidden"></div>
+</div>
+<div class="relative w-full order-3 md:order-2 md:flex-1 md:w-auto md:max-w-md">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant">search</span>
+<input id="task-search" data-i18n-placeholder="common.search_tasks" class="w-full pl-10 pr-4 py-2 bg-surface-container-lowest border border-outline-variant rounded-full font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-all" placeholder="" type="text"/>
 </div>
 </header>
 <!-- Page Content -->
@@ -167,6 +167,7 @@
 <script src="shared/timepath-modal.js"></script>
 <script src="shared/timepath-ui.js"></script>
 <script src="shared/timepath-render.js"></script>
+<script src="shared/timepath-subtask-editor.js"></script>
 <script src="shared/timepath-task-form.js"></script>
 <script src="shared/timepath-settings-form.js"></script>
 <script>

@@ -12,7 +12,15 @@
 
         var migrated = Object.assign({}, raw);
         migrated.version = migrated.version || STORAGE_VERSION;
-        migrated.tasks = Array.isArray(migrated.tasks) ? migrated.tasks : [];
+        // Cleans up a task's subtasks the same way a goal node's are cleaned
+        // in shared/timepath-goal-store.js's migrate() — a malformed row
+        // (blank title, missing id) written straight to LocalStorage by
+        // hydrateFromCloud() below, from an older client, or from a cloud
+        // row shape drift, gets normalized the next time this device loads.
+        migrated.tasks = (Array.isArray(migrated.tasks) ? migrated.tasks : []).map(function (t) {
+            if (t && Array.isArray(t.subtasks)) t.subtasks = U.normalizeSubtasks(t.subtasks);
+            return t;
+        });
         migrated.sops = Array.isArray(migrated.sops) ? migrated.sops : [];
         migrated.budget = Object.assign(defaultBudget(), migrated.budget || {});
         if (!migrated.selectedDate) migrated.selectedDate = U.todayStr();
@@ -178,6 +186,7 @@
     function addTask(partial) {
         ensureLoaded();
         var task = Object.assign(newTaskDefaults(), partial);
+        task.subtasks = U.normalizeSubtasks(task.subtasks);
         state.tasks.push(task);
         save();
         U.markUserDataDirty();
@@ -189,6 +198,9 @@
         ensureLoaded();
         var task = state.tasks.find(function (t) { return t.id === id; });
         if (!task) return null;
+        if (patch && patch.subtasks) {
+            patch.subtasks = U.normalizeSubtasks(patch.subtasks);
+        }
         Object.assign(task, patch);
         save();
         U.markUserDataDirty();

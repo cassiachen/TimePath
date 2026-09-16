@@ -152,15 +152,24 @@
         // own header (or, for sop.html which has no header, its own small
         // mobile-only stand-in) — filled in here rather than each page
         // hardcoding the Goals link / account button shell itself, same
-        // "one source of truth" reasoning as the rest of this file. Both
-        // are optional: a page missing a slot just doesn't get that icon,
-        // nothing errors.
+        // "one source of truth" reasoning as the rest of this file. Missing
+        // either isn't fatal (mobile users just lose that one icon, nothing
+        // throws) but is always a mistake, not a valid page layout — warn
+        // in the console so it's caught in development instead of only
+        // surfacing later as "I can't sign out on my phone."
         var goalsSlot = document.getElementById("mobile-nav-goals-slot");
         if (goalsSlot) goalsSlot.innerHTML = mobileGoalsLinkHtml(opts.active);
+        else console.warn("[timepath-nav] #mobile-nav-goals-slot not found on this page — mobile users won't see the Goals icon");
         var accountSlot = document.getElementById("mobile-nav-account-slot");
         if (accountSlot) accountSlot.innerHTML = mobileAccountSlotHtml();
+        else console.warn("[timepath-nav] #mobile-nav-account-slot not found on this page — mobile users won't be able to sign in/out");
 
-        if (window.TimePathI18n) window.TimePathI18n.applyStatic();
+        // No applyStatic() call here — render()'s only caller, initPage()
+        // (shared/timepath-app.js), always calls applyStatic() itself
+        // immediately after render() returns, which already covers the
+        // data-i18n-title just written into goalsSlot above. Calling it a
+        // second time here would just repeat the same full-document
+        // querySelectorAll pass for identical output.
         if (window.TimePathAuth && typeof window.TimePathAuth.mountNavUser === "function") {
             window.TimePathAuth.mountNavUser();
         }
